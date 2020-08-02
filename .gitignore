@@ -1,3 +1,7 @@
+# wiki
+run/mysql
+run/nginx/logs
+.vscode
 # Binaries for programs and plugins
 *.exe
 *.exe~
