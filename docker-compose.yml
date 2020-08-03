@@ -6,8 +6,8 @@ services:
     build:
       context: ./wiki
     image: niaotuobang-wiki
-    volumes:
-      - ./wiki:/root/wiki
+    expose:
+      - "80"
     restart: always
     networks:
       - wiki-net
@@ -29,11 +29,11 @@ services:
     container_name: "wiki-nginx"
     image: nginx:stable
     ports:
-      - "7780:80"
-      - "7443:443"
+      - "80:80"
+      - "443:443"
     volumes:
       - .:/var/www/html/:rw
-      - ./run/nginx/conf.d:/etc/nginx/conf.d/:rw
+      - ./run/nginx/conf.d:/etc/nginx/conf.d:rw
       - ./run/nginx/logs:/var/log/nginx/:rw
     restart: always
     networks:
@@ -41,4 +41,3 @@ services:
 
 networks:
   wiki-net:
-    external: true

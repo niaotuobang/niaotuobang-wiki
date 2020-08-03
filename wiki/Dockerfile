@@ -1,6 +1,8 @@
 FROM golang:latest
-WORKDIR /root
+WORKDIR /root/wiki
+ENV GOPROXY https://goproxy.cn
 
-#RUN go build cmd/web.go
+COPY  . .
+RUN go build cmd/web.go
 
-CMD ["ls"]
+CMD ["/root/wiki/web"]

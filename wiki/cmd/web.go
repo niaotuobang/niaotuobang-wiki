@@ -13,5 +13,5 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("🐦🐫Bang"))
 	})
-	http.ListenAndServe(":8001", r)
+	http.ListenAndServe(":80", r)
 }
