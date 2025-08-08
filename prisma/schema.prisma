@@ -1,0 +1,234 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  USER
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  role      UserRole @default(USER)
+  avatar    String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  articles  Article[]
+  versions  ArticleVersion[]
+  media     Media[]
+  accounts  Account[]
+  sessions  Session[]
+  comments  Comment[]
+  shares    ArticleShare[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String   @default("#3B82F6")
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  articles Article[]
+
+  @@map("topics")
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  content     String        // JSON content from TipTap
+  excerpt     String?
+  status      ArticleStatus @default(DRAFT)
+  isPublic    Boolean       @default(true)
+  viewCount   Int           @default(0)
+  authorId    String
+  topicId     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  publishedAt DateTime?
+
+  // Relations
+  author    User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  topic     Topic?           @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  versions  ArticleVersion[]
+  tags      ArticleTag[]
+  media     ArticleMedia[]
+  comments  Comment[]
+  shares    ArticleShare[]
+
+  @@map("articles")
+}
+
+model ArticleShare {
+  id          String          @id @default(cuid())
+  articleId   String
+  userId      String?
+  email       String?
+  permission  SharePermission @default(VIEW)
+  token       String?         @unique
+  expiresAt   DateTime?
+  createdAt   DateTime        @default(now())
+
+  // Relations
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("article_shares")
+}
+
+enum SharePermission {
+  VIEW
+  EDIT
+  COMMENT
+}
+
+model ArticleVersion {
+  id        String   @id @default(cuid())
+  articleId String
+  content   String
+  editorId  String
+  createdAt DateTime @default(now())
+
+  // Relations
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  editor  User    @relation(fields: [editorId], references: [id], onDelete: Cascade)
+
+  @@map("article_versions")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#10B981")
+  createdAt DateTime @default(now())
+
+  // Relations
+  articles ArticleTag[]
+
+  @@map("tags")
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
+}
+
+model Media {
+  id           String  @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  uploaderId   String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  uploader User           @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  articles ArticleMedia[]
+
+  @@map("media")
+}
+
+model ArticleMedia {
+  articleId String
+  mediaId   String
+  order     Int      @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, mediaId])
+  @@map("article_media")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  articleId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
