@@ -17,7 +17,6 @@ import {
   Redo,
   Link as LinkIcon,
   Image as ImageIcon,
-  Video,
 } from "lucide-react"
 
 interface EditorProps {
@@ -136,7 +135,16 @@ export function Editor({ content, onChange, placeholder }: EditorProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => editor.chain().focus().toggleLink().run()}
+          onClick={() => {
+            if (editor.isActive('link')) {
+              editor.chain().focus().unsetLink().run()
+            } else {
+              const url = window.prompt('Enter a URL')
+              if (url) {
+                editor.chain().focus().setLink({ href: url }).run()
+              }
+            }
+          }}
           className={editor.isActive("link") ? "bg-gray-200" : ""}
         >
           <LinkIcon className="h-4 w-4" />
