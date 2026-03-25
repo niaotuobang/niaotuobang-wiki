@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -43,12 +42,17 @@ interface Share {
 interface ShareDialogProps {
   articleSlug: string
   shares: Share[]
-  onShare: (data: any) => Promise<void>
+  onShare: (data: {
+    email?: string
+    permission: "VIEW" | "EDIT" | "COMMENT"
+    expiresAt?: string
+  }) => Promise<void>
   onRemoveShare: (shareId: string) => Promise<void>
   children: React.ReactNode
 }
 
 export function ShareDialog({ 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   articleSlug, 
   shares, 
   onShare, 
@@ -57,9 +61,13 @@ export function ShareDialog({
 }: ShareDialogProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    email: string
+    permission: "VIEW" | "EDIT" | "COMMENT"
+    expiresAt: string
+  }>({
     email: "",
-    permission: "VIEW" as const,
+    permission: "VIEW",
     expiresAt: ""
   })
 
@@ -148,7 +156,7 @@ export function ShareDialog({
             <Label>权限</Label>
             <Select
               value={formData.permission}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, permission: value as any }))}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, permission: value as "VIEW" | "EDIT" | "COMMENT" }))}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -213,7 +221,7 @@ export function ShareDialog({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(getShareLink(share.token))}
+                        onClick={() => share.token && copyToClipboard(getShareLink(share.token))}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>

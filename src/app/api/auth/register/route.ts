@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Hash password
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user

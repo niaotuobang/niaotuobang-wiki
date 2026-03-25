@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"

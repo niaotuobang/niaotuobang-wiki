@@ -27,23 +27,27 @@ enum ArticleStatus {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  email     String   @unique
-  role      UserRole @default(USER)
-  avatar    String?
-  bio       String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  username      String   @unique
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  role          UserRole @default(USER)
+  avatar        String?
+  bio           String?
+  password      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  articles  Article[]
-  versions  ArticleVersion[]
-  media     Media[]
-  accounts  Account[]
-  sessions  Session[]
-  comments  Comment[]
-  shares    ArticleShare[]
+  articles           Article[]
+  versions           ArticleVersion[]
+  media              Media[]
+  accounts           Account[]
+  sessions           Session[]
+  comments           Comment[]
+  shares             ArticleShare[]
+  verificationTokens VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -225,10 +229,25 @@ model Comment {
 }
 
 model VerificationToken {
-  identifier String
+  id         String   @id @default(cuid())
+  email      String
   token      String   @unique
   expires    DateTime
+  createdAt  DateTime @default(now())
 
-  @@unique([identifier, token])
+  user User @relation(fields: [email], references: [email], onDelete: Cascade)
+
   @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  email      String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [email], references: [email], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }

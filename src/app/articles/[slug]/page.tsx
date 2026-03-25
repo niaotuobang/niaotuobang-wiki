@@ -14,6 +14,20 @@ import { zhCN } from "date-fns/locale"
 import { Edit, Eye, MessageCircle, Calendar, Share2 } from "lucide-react"
 import Link from "next/link"
 
+interface Share {
+  id: string
+  email?: string
+  permission: "VIEW" | "EDIT" | "COMMENT"
+  token?: string
+  expiresAt?: string
+  createdAt: string
+  user?: {
+    id: string
+    username: string
+    email: string
+  }
+}
+
 interface Author {
   id: string
   username: string
@@ -51,6 +65,7 @@ interface Comment {
 interface Article {
   id: string
   title: string
+  slug: string
   content: string
   excerpt?: string
   viewCount: number
@@ -69,7 +84,7 @@ export default function ArticlePage() {
   const params = useParams()
   const { data: session } = useSession()
   const [article, setArticle] = useState<Article | null>(null)
-  const [shares, setShares] = useState<any[]>([])
+  const [shares, setShares] = useState<Share[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -107,7 +122,11 @@ export default function ArticlePage() {
     }
   }, [params.slug])
 
-  const handleShare = async (data: any) => {
+  const handleShare = async (data: {
+    email?: string
+    permission: "VIEW" | "EDIT" | "COMMENT"
+    expiresAt?: string
+  }) => {
     const response = await fetch(`/api/articles/${params.slug}/share`, {
       method: "POST",
       headers: {

@@ -1,0 +1,120 @@
+import type { Config } from "tailwindcss";
+
+export default {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: "var(--primary-50)",
+          100: "var(--primary-100)",
+          200: "var(--primary-200)",
+          300: "var(--primary-300)",
+          400: "var(--primary-400)",
+          500: "var(--primary-500)",
+          600: "var(--primary-600)",
+          700: "var(--primary-700)",
+          800: "var(--primary-800)",
+          900: "var(--primary-900)",
+        },
+        accent: {
+          50: "var(--accent-50)",
+          100: "var(--accent-100)",
+          200: "var(--accent-200)",
+          300: "var(--accent-300)",
+          400: "var(--accent-400)",
+          500: "var(--accent-500)",
+          600: "var(--accent-600)",
+          700: "var(--accent-700)",
+          800: "var(--accent-800)",
+          900: "var(--accent-900)",
+        },
+        gray: {
+          50: "var(--gray-50)",
+          100: "var(--gray-100)",
+          200: "var(--gray-200)",
+          300: "var(--gray-300)",
+          400: "var(--gray-400)",
+          500: "var(--gray-500)",
+          600: "var(--gray-600)",
+          700: "var(--gray-700)",
+          800: "var(--gray-800)",
+          900: "var(--gray-900)",
+        },
+        border: "var(--border)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        card: {
+          DEFAULT: "var(--card-background)",
+          foreground: "var(--card-foreground)",
+        },
+      },
+      fontFamily: {
+        sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Monaco", "Consolas", "Liberation Mono", "Menlo", "monospace"],
+      },
+      fontSize: {
+        "xs": ["0.75rem", { lineHeight: "1rem" }],
+        "sm": ["0.875rem", { lineHeight: "1.25rem" }],
+        "base": ["1rem", { lineHeight: "1.5rem" }],
+        "lg": ["1.125rem", { lineHeight: "1.75rem" }],
+        "xl": ["1.25rem", { lineHeight: "1.75rem" }],
+        "2xl": ["1.5rem", { lineHeight: "2rem" }],
+        "3xl": ["1.875rem", { lineHeight: "2.25rem" }],
+        "4xl": ["2.25rem", { lineHeight: "2.5rem" }],
+        "5xl": ["3rem", { lineHeight: "1" }],
+        "6xl": ["3.75rem", { lineHeight: "1" }],
+        "7xl": ["4.5rem", { lineHeight: "1" }],
+        "8xl": ["6rem", { lineHeight: "1" }],
+        "9xl": ["8rem", { lineHeight: "1" }],
+      },
+      boxShadow: {
+        "sm": "var(--shadow-sm)",
+        DEFAULT: "var(--shadow)",
+        "md": "var(--shadow-md)",
+        "lg": "var(--shadow-lg)",
+        "xl": "var(--shadow-xl)",
+        "2xl": "var(--shadow-2xl)",
+      },
+      animation: {
+        blob: "blob 7s infinite",
+        float: "float 3s ease-in-out infinite",
+        "fade-in": "fadeIn 0.5s ease-in-out",
+        "slide-up": "slideUp 0.5s ease-out",
+        tilt: "tilt 10s infinite linear",
+      },
+      keyframes: {
+        blob: {
+          "0%": { transform: "translate(0px, 0px) scale(1)" },
+          "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+          "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+          "100%": { transform: "translate(0px, 0px) scale(1)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { transform: "translateY(20px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        tilt: {
+          "0%, 50%, 100%": { transform: "rotate(0deg)" },
+          "25%": { transform: "rotate(1deg)" },
+          "75%": { transform: "rotate(-1deg)" },
+        },
+      },
+    },
+  },
+  plugins: [
+    require("@tailwindcss/typography"),
+  ],
+} satisfies Config;

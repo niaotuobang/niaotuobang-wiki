@@ -1,0 +1,82 @@
+{
+  "Common": {
+    "home": "首页",
+    "search": "搜索",
+    "settings": "设置",
+    "logout": "退出登录",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功"
+  },
+  "Navigation": {
+    "articles": "文章",
+    "topics": "主题",
+    "tags": "标签",
+    "searchPlaceholder": "搜索文章...",
+    "createArticle": "创建文章",
+    "profile": "个人主页",
+    "settings": "设置",
+    "logout": "退出登录",
+    "login": "登录",
+    "register": "注册"
+  },
+  "Auth": {
+    "login": "登录",
+    "register": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "forgotPassword": "忘记密码？",
+    "loginSuccess": "登录成功",
+    "registerSuccess": "注册成功",
+    "invalidCredentials": "邮箱或密码错误",
+    "emailRequired": "邮箱不能为空",
+    "passwordRequired": "密码不能为空",
+    "passwordMinLength": "密码至少6位",
+    "emailInvalid": "请输入有效的邮箱"
+  },
+  "Article": {
+    "title": "标题",
+    "content": "内容",
+    "createArticle": "创建文章",
+    "editArticle": "编辑文章",
+    "deleteArticle": "删除文章",
+    "shareArticle": "分享文章",
+    "comments": "评论",
+    "addComment": "添加评论",
+    "noComments": "暂无评论",
+    "publishedAt": "发布于",
+    "updatedAt": "更新于",
+    "readMore": "阅读更多"
+  },
+  "Search": {
+    "placeholder": "搜索文章...",
+    "results": "搜索结果",
+    "noResults": "未找到结果",
+    "searching": "搜索中..."
+  },
+  "Home": {
+    "preserveMemories": "留存群聊记忆",
+    "niaotuobang": "鸟脱邦",
+    "description": "记录群聊中的每个成员，留存群聊文化记忆。共建属于你们的知识库。",
+    "getStarted": "开始创建",
+    "browseArticles": "浏览词条",
+    "coreFeatures": "核心功能",
+    "characterProfiles": "人物画像",
+    "characterProfilesDesc": "为群成员创建专属词条，记录特点、经历和经典语录",
+    "collaborativeEditing": "协作编辑",
+    "collaborativeEditingDesc": "多人共同编辑，版本历史记录，让内容更加完善",
+    "quickSearch": "快速搜索",
+    "quickSearchDesc": "强大的搜索功能，快速找到需要的词条和内容",
+    "learnMore": "了解更多",
+    "recentArticles": "最新词条",
+    "viewAll": "查看全部",
+    "noArticlesYet": "还没有词条",
+    "beFirstCreator": "成为第一个创建者，开始记录群聊的精彩瞬间！",
+    "createFirstArticle": "创建第一个词条"
+  }
+}

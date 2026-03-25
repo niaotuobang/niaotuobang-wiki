@@ -1,0 +1,82 @@
+{
+  "Common": {
+    "home": "Home",
+    "search": "Search",
+    "settings": "Settings",
+    "logout": "Logout",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "Navigation": {
+    "articles": "Articles",
+    "topics": "Topics",
+    "tags": "Tags",
+    "searchPlaceholder": "Search articles...",
+    "createArticle": "Create Article",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Sign Out",
+    "login": "Sign In",
+    "register": "Sign Up"
+  },
+  "Auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "loginSuccess": "Logged in successfully",
+    "registerSuccess": "Registration successful",
+    "invalidCredentials": "Invalid email or password",
+    "emailRequired": "Email is required",
+    "passwordRequired": "Password is required",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "emailInvalid": "Please enter a valid email"
+  },
+  "Article": {
+    "title": "Title",
+    "content": "Content",
+    "createArticle": "Create Article",
+    "editArticle": "Edit Article",
+    "deleteArticle": "Delete Article",
+    "shareArticle": "Share Article",
+    "comments": "Comments",
+    "addComment": "Add Comment",
+    "noComments": "No comments yet",
+    "publishedAt": "Published at",
+    "updatedAt": "Updated at",
+    "readMore": "Read More"
+  },
+  "Search": {
+    "placeholder": "Search articles...",
+    "results": "Search Results",
+    "noResults": "No results found",
+    "searching": "Searching..."
+  },
+  "Home": {
+    "preserveMemories": "Preserve Group Memories",
+    "niaotuobang": "Niaotuobang",
+    "description": "Document every member in your group chat, preserve the cultural memory. Build your knowledge base together.",
+    "getStarted": "Get Started",
+    "browseArticles": "Browse Articles",
+    "coreFeatures": "Core Features",
+    "characterProfiles": "Character Profiles",
+    "characterProfilesDesc": "Create dedicated profiles for group members, record their traits, experiences, and classic quotes",
+    "collaborativeEditing": "Collaborative Editing",
+    "collaborativeEditingDesc": "Multiple people editing together, version history, making content more comprehensive",
+    "quickSearch": "Quick Search",
+    "quickSearchDesc": "Powerful search functionality, quickly find the articles and content you need",
+    "learnMore": "Learn more",
+    "recentArticles": "Recent Articles",
+    "viewAll": "View All",
+    "noArticlesYet": "No articles yet",
+    "beFirstCreator": "Be the first creator and start documenting the wonderful moments of your group chat!",
+    "createFirstArticle": "Create First Article"
+  }
+}

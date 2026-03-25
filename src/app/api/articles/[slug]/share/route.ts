@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { v4 as uuidv4 } from "uuid"
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { slug } = await params
+    const session = await auth()
     
     if (!session) {
       return NextResponse.json(
@@ -17,8 +17,6 @@ export async function POST(
         { status: 401 }
       )
     }
-
-    const { slug } = params
     const { email, permission = "VIEW", expiresAt } = await req.json()
 
     // Find the article
@@ -138,10 +136,11 @@ export async function POST(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { slug } = await params
+    const session = await auth()
     
     if (!session) {
       return NextResponse.json(
@@ -149,8 +148,6 @@ export async function GET(
         { status: 401 }
       )
     }
-
-    const { slug } = params
 
     // Find the article
     const article = await prisma.article.findUnique({

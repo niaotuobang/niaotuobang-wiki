@@ -4,13 +4,13 @@ import { ArticleContent } from "@/components/article-content"
 import { CommentSection } from "@/components/comment-section"
 
 interface SharedArticlePageProps {
-  params: {
+  params: Promise<{
     token: string
-  }
+  }>
 }
 
 export default async function SharedArticlePage({ params }: SharedArticlePageProps) {
-  const { token } = params
+  const { token } = await params
 
   // Find share record
   const share = await prisma.articleShare.findFirst({
@@ -65,7 +65,19 @@ export default async function SharedArticlePage({ params }: SharedArticlePagePro
     notFound()
   }
 
-  const article = share.article
+  const article = {
+    ...share.article,
+    createdAt: share.article.createdAt.toISOString(),
+    updatedAt: share.article.updatedAt.toISOString(),
+    comments: share.article.comments.map(comment => ({
+      ...comment,
+      createdAt: comment.createdAt.toISOString(),
+      author: {
+        ...comment.author,
+        avatar: comment.author.avatar || undefined
+      }
+    }))
+  }
 
   // Check permission
   const canEdit = share.permission === "EDIT"
@@ -85,8 +97,7 @@ export default async function SharedArticlePage({ params }: SharedArticlePagePro
 
         {/* Article Content */}
         <ArticleContent 
-          article={article}
-          showEditButton={canEdit}
+          content={article.content}
         />
 
         {/* Comments Section */}

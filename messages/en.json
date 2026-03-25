@@ -1,0 +1,115 @@
+{
+  "Common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "loading": "Loading...",
+    "noResults": "No results found"
+  },
+  "Navigation": {
+    "home": "Home",
+    "create": "Create Article",
+    "search": "Search",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout",
+    "login": "Login",
+    "signup": "Sign Up"
+  },
+  "Home": {
+    "title": "Niaotuobang Wiki",
+    "subtitle": "Record every member in the group chat, preserve group chat cultural memory. Build your knowledge base together.",
+    "startCreating": "Start Creating",
+    "browseArticles": "Browse Articles",
+    "features": {
+      "portraits": {
+        "title": "Character Portraits",
+        "description": "Create exclusive entries for group members, recording their characteristics, experiences, and classic quotes"
+      },
+      "collaboration": {
+        "title": "Collaborative Editing",
+        "description": "Multiple people edit together, version history records, making content more complete"
+      },
+      "search": {
+        "title": "Quick Search",
+        "description": "Powerful search functionality to quickly find the entries and content you need"
+      }
+    },
+    "recentArticles": {
+      "title": "Recent Articles",
+      "empty": "No articles yet, be the first creator!",
+      "createFirst": "Create the first article"
+    }
+  },
+  "Auth": {
+    "signIn": {
+      "title": "Sign In",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign In",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign Up",
+      "invalidCredentials": "Invalid email or password"
+    },
+    "signUp": {
+      "title": "Sign Up",
+      "username": "Username",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "submit": "Sign Up",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign In",
+      "passwordMismatch": "Passwords do not match",
+      "userExists": "User with this email already exists"
+    }
+  },
+  "Article": {
+    "create": {
+      "title": "Create Article",
+      "titlePlaceholder": "Enter article title",
+      "contentPlaceholder": "Enter article content...",
+      "topic": "Topic",
+      "selectTopic": "Select a topic",
+      "tags": "Tags",
+      "addTag": "Add a tag",
+      "submit": "Create Article",
+      "cancel": "Cancel"
+    },
+    "edit": {
+      "title": "Edit Article",
+      "save": "Save Changes",
+      "cancel": "Cancel"
+    },
+    "share": {
+      "title": "Share Article",
+      "description": "Share this article with others and set access permissions",
+      "email": "Email address (optional)",
+      "permission": "Permission",
+      "view": "View only",
+      "comment": "View and Comment",
+      "edit": "View, Comment and Edit",
+      "expiresAt": "Expiration time (optional)",
+      "createShare": "Create Share",
+      "sharedUsers": "Shared Users",
+      "publicLink": "Public link"
+    },
+    "comments": {
+      "title": "Comments",
+      "addComment": "Add a comment...",
+      "submit": "Submit",
+      "edit": "Edit",
+      "delete": "Delete",
+      "reply": "Reply"
+    }
+  },
+  "Errors": {
+    "unauthorized": "Unauthorized",
+    "notFound": "Not Found",
+    "serverError": "Server Error",
+    "networkError": "Network Error"
+  }
+}

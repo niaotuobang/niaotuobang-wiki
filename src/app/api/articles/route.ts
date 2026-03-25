@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { ArticleStatus } from "@prisma/client"
+import { ArticleStatus, Prisma } from "@prisma/client"
 import { generateSlug } from "@/lib/utils"
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
     
     if (!session) {
       return NextResponse.json(
@@ -113,7 +112,7 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    const where: any = {
+    const where: Prisma.ArticleWhereInput = {
       status: ArticleStatus.PUBLISHED,
       isPublic: true
     }

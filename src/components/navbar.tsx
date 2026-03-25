@@ -29,12 +29,14 @@ export function Navbar() {
   }
 
   return (
-    <nav className="border-b bg-white">
+    <nav className="sticky top-0 z-50 glass border-b border-gray-200/50 backdrop-blur-xl">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <BookOpen className="h-6 w-6 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">鸟脱邦 Wiki</span>
+          <Link href="/" className="flex items-center space-x-3 transition-transform hover:scale-105">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-accent-600 rounded-xl flex items-center justify-center shadow-lg">
+              <BookOpen className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900 dark:text-gray-100">鸟托邦 Wiki</span>
           </Link>
 
           <form onSubmit={handleSearch} className="flex-1 max-w-md mx-8">
@@ -44,13 +46,14 @@ export function Navbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索词条..."
-                className="pr-10"
+                className="input-field pl-12 pr-4 py-3 shadow-sm focus:shadow-md transition-shadow"
               />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Button
                 type="submit"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <Search className="h-4 w-4" />
               </Button>
@@ -60,57 +63,57 @@ export function Navbar() {
           <div className="flex items-center space-x-4">
             {session ? (
               <>
-                <Link href="/create">
-                  <Button variant="outline">创建词条</Button>
+                <Link href="/create" className="btn-primary">
+                  创建词条
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={session.user.avatar} />
-                        <AvatarFallback>
-                          {session.user.username.charAt(0)}
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                      <Avatar className="h-9 w-9 ring-2 ring-primary-500/20">
+                        <AvatarImage src={session?.user?.avatar} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary-500 to-accent-500 text-white">
+                          {session?.user?.username?.charAt(0) || 'U'}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
-                    <div className="flex items-center justify-start gap-2 p-2">
+                  <DropdownMenuContent className="w-56 glass border-gray-200/50" align="end" forceMount>
+                    <div className="flex items-center justify-start gap-3 p-3">
                       <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{session.user.username}</p>
-                        <p className="w-[200px] truncate text-sm text-muted-foreground">
-                          {session.user.email}
+                        <p className="font-semibold">{session?.user?.username}</p>
+                        <p className="w-[200px] truncate text-sm text-gray-500">
+                          {session?.user?.email}
                         </p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href={`/profile/${session.user.username}`}>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href={`/profile/${session?.user?.username}`} className="flex items-center">
                         <User className="mr-2 h-4 w-4" />
-                        个人主页
+                        个人资料
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings">
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/settings" className="flex items-center">
                         <Settings className="mr-2 h-4 w-4" />
                         设置
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut()}>
+                    <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
                       <LogOut className="mr-2 h-4 w-4" />
-                        退出登录
+                      退出登录
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
-              <div className="flex items-center space-x-2">
-                <Link href="/auth/signin">
-                  <Button variant="ghost">登录</Button>
+              <div className="flex items-center space-x-3">
+                <Link href="/auth/signin" className="btn-secondary">
+                  登录
                 </Link>
-                <Link href="/auth/signup">
-                  <Button>注册</Button>
+                <Link href="/auth/signup" className="btn-primary">
+                  注册
                 </Link>
               </div>
             )}

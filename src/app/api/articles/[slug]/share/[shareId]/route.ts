@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { slug: string; shareId: string } }
+  { params }: { params: Promise<{ slug: string; shareId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { slug, shareId } = await params
+    const session = await auth()
     
     if (!session) {
       return NextResponse.json(
@@ -16,8 +16,6 @@ export async function DELETE(
         { status: 401 }
       )
     }
-
-    const { slug, shareId } = params
 
     // Find the article
     const article = await prisma.article.findUnique({

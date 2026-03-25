@@ -67,6 +67,7 @@ export default function SearchPage() {
   const [tags, setTags] = useState<TagSuggestion[]>([])
   const [loading, setLoading] = useState(false)
   const [total, setTotal] = useState(0)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [page, setPage] = useState(1)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -276,7 +277,7 @@ export default function SearchPage() {
             </>
           ) : query ? (
             <div className="text-center py-8 text-gray-500">
-              没有找到与 "{query}" 相关的结果
+              没有找到与 &quot;{query}&quot; 相关的结果
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">

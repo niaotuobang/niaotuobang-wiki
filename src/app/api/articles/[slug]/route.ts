@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ArticleStatus } from "@prisma/client"
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = params
+    const { slug } = await params
 
     const article = await prisma.article.findUnique({
       where: { slug },
@@ -85,10 +85,11 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { slug } = await params
+    const session = await auth()
     
     if (!session) {
       return NextResponse.json(
@@ -96,8 +97,6 @@ export async function PUT(
         { status: 401 }
       )
     }
-
-    const { slug } = params
     const { title, content, excerpt, topicId, tagIds, isPublic } = await req.json()
 
     // Find the article
@@ -186,10 +185,11 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { slug } = await params
+    const session = await auth()
     
     if (!session) {
       return NextResponse.json(
@@ -197,8 +197,6 @@ export async function DELETE(
         { status: 401 }
       )
     }
-
-    const { slug } = params
 
     // Find the article
     const article = await prisma.article.findUnique({
