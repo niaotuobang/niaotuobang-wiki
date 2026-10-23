@@ -1,0 +1,22 @@
+services:
+  wiki:
+    image: niaotuobang-wiki:local
+    build: .
+    environment:
+      BASE_URL: ${BASE_URL:-}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_REGION: ${OSS_REGION:-}
+      OSS_BUCKET: ${OSS_BUCKET:-}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_SECURITY_TOKEN: ${OSS_SECURITY_TOKEN:-}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - wiki-data:/data
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1
+volumes:
+  wiki-data:

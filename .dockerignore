@@ -1,0 +1,13 @@
+.git
+.local-infra
+.ai-cli-log
+legacy-export
+node_modules
+web/node_modules
+data
+backups
+bin
+.next
+.env*
+internal/webui/dist/assets
+internal/webui/dist/index.html

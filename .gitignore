@@ -40,3 +40,15 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Go + Vue runtime, build products, and local-only infrastructure
+/data/
+/backups/
+/legacy-export/
+/bin/
+/web/node_modules/
+/internal/webui/dist/*
+!/internal/webui/dist/.gitkeep
+/.local-infra/
+/web/test-results/
+/.ai-cli-log/

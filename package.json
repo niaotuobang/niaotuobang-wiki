@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "make demo",
+    "dev:api": "make dev-api",
+    "dev:web": "make dev-web",
+    "build": "make build",
+    "start": "./bin/wiki serve",
+    "lint": "make check",
+    "test": "make test",
+    "legacy:dev": "next dev",
+    "legacy:build": "next build",
+    "legacy:start": "next start"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

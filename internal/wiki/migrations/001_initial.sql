@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, name TEXT NOT NULL, login TEXT NOT NULL UNIQUE, password_hash BLOB NOT NULL, role TEXT NOT NULL CHECK(role IN ('admin','editor','viewer')));
+CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS tags(id TEXT PRIMARY KEY,name TEXT NOT NULL,name_key TEXT NOT NULL UNIQUE,description TEXT NOT NULL DEFAULT '',show_in_nav INTEGER NOT NULL DEFAULT 0,nav_order INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS articles(id TEXT PRIMARY KEY,title TEXT NOT NULL,document TEXT NOT NULL,plain_text TEXT NOT NULL,status TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 0,occurred_at TEXT NOT NULL DEFAULT '',date_precision TEXT NOT NULL DEFAULT '',author_id TEXT NOT NULL REFERENCES users(id),updated_by TEXT NOT NULL REFERENCES users(id),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,change_summary TEXT NOT NULL DEFAULT '',deleted_at TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS article_tags(article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,PRIMARY KEY(article_id,tag_id));
+CREATE INDEX IF NOT EXISTS article_tags_by_tag ON article_tags(tag_id,article_id);
+CREATE INDEX IF NOT EXISTS articles_updates ON articles(status,deleted_at,updated_at DESC,id);
+CREATE TABLE IF NOT EXISTS article_versions(article_id TEXT NOT NULL REFERENCES articles(id),revision INTEGER NOT NULL,snapshot TEXT NOT NULL,PRIMARY KEY(article_id,revision));
+CREATE TABLE IF NOT EXISTS article_drafts(article_id TEXT NOT NULL REFERENCES articles(id),user_id TEXT NOT NULL REFERENCES users(id),body TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(article_id,user_id));
+CREATE TABLE IF NOT EXISTS article_links(source_id TEXT NOT NULL REFERENCES articles(id),target_id TEXT NOT NULL,PRIMARY KEY(source_id,target_id));
+CREATE TABLE IF NOT EXISTS media(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL REFERENCES users(id),name TEXT NOT NULL,content_type TEXT NOT NULL,size INTEGER NOT NULL,state TEXT NOT NULL,object_key TEXT NOT NULL,created_at TEXT NOT NULL,checksum TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS article_media(article_id TEXT NOT NULL REFERENCES articles(id),revision INTEGER NOT NULL,media_id TEXT NOT NULL REFERENCES media(id),PRIMARY KEY(article_id,revision,media_id));
+CREATE TABLE IF NOT EXISTS import_map(source TEXT NOT NULL,legacy_id TEXT NOT NULL,article_id TEXT NOT NULL REFERENCES articles(id),PRIMARY KEY(source,legacy_id));
