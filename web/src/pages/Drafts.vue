@@ -22,10 +22,10 @@ onMounted(() => load())
 <template>
   <div class="page-heading">
     <div>
-      <h1>还没写完的故事</h1>
-      <p class="page-description">草稿只对你可见，等准备好了再发布。</p>
+      <h1>我的草稿</h1>
+      <p class="page-description">未发布的文章只对你可见，随时回来继续写。</p>
     </div>
-    <RouterLink to="/articles/new" class="quiet-button"
+    <RouterLink v-if="items.length" to="/articles/new" class="quiet-button"
       ><Icon name="plus" :size="16" />写一篇新的</RouterLink
     >
   </div>
@@ -33,10 +33,11 @@ onMounted(() => load())
     {{ error }}<button @click="load()">重试</button>
   </p>
   <p v-if="loading" class="loading">正在找回草稿…</p>
-  <div v-else-if="!items.length && !error" class="empty-state">
+  <div v-else-if="!items.length && !error" class="empty-state draft-empty">
     <Icon name="edit" :size="32" />
-    <h2>暂时没有未完成的文章</h2>
-    <p>编辑时的文字会自动保存在这里。</p>
+    <h2>还没有草稿</h2>
+    <p>写文章时会自动保存，没写完也不用担心。</p>
+    <RouterLink to="/articles/new" class="button">写一篇文章</RouterLink>
   </div>
   <div class="article-list">
     <article v-for="draft in items" :key="draft.id" class="article-row draft-row">

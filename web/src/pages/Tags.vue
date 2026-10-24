@@ -93,8 +93,10 @@ async function remove() {
     </section>
   </div>
   <div v-if="!filtered.length" class="empty-state">
-    <h2>还没有这个标签</h2>
-    <p>可以换个词，或创建一个新的。</p>
+    <h2>{{ search ? '还没有这个标签' : '还没有标签' }}</h2>
+    <p>
+      {{ search ? '可以换个词，或创建一个新的。' : '用人物、事件或一个群梗，为故事添加入口。' }}
+    </p>
   </div>
   <div v-if="open" class="modal-shade" @click.self="open = false">
     <form
@@ -149,7 +151,7 @@ async function remove() {
       <div class="dialog-actions">
         <button
           v-if="
-            (editing && session.user?.role === 'admin') || session.user?.role === 'system_admin'
+            editing && (session.user?.role === 'admin' || session.user?.role === 'system_admin')
           "
           type="button"
           class="delete-link"

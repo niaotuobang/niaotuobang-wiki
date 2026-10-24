@@ -147,9 +147,11 @@ onUnmounted(() => {
           <RouterLink to="/tags" class="all-tags"
             >全部标签 <Icon name="arrow" :size="15"
           /></RouterLink>
-          <RouterLink v-if="editable()" to="/drafts" class="primary-nav draft-nav"
-            ><Icon name="edit" :size="18" />我的草稿</RouterLink
-          >
+          <div v-if="editable()" class="draft-nav-section">
+            <RouterLink to="/drafts" class="primary-nav"
+              ><Icon name="edit" :size="18" />我的草稿</RouterLink
+            >
+          </div>
           <div class="mobile-account-links">
             <RouterLink v-if="editable()" to="/articles/new" class="primary-nav"
               ><Icon name="plus" :size="18" />写文章</RouterLink
