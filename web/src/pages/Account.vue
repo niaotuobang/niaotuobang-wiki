@@ -15,6 +15,21 @@ const setupAdminConfigured = ref(false),
   setupNameConfigured = ref(false)
 const email = ref<{ id: string; masked: string } | null>(null)
 const avatarInput = ref<HTMLInputElement>()
+const nickname = ref('')
+watch(
+  () => session.user?.name,
+  (name) => {
+    nickname.value = name || ''
+  },
+  { immediate: true },
+)
+async function saveNickname() {
+  await run(async () => {
+    await api('/account/profile', { method: 'PATCH', body: { nickname: nickname.value } })
+    await refreshSession()
+    notice.value = '昵称已更新'
+  })
+}
 async function uploadAvatar(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -195,7 +210,7 @@ function leaveInvite() {
   <section :class="session.user ? 'account-page' : 'auth-page'">
     <h1>{{ title }}</h1>
     <p class="page-description">
-      {{ session.user ? '管理头像、邮箱和登录记录。' : '使用邮箱验证码，无需设置密码。' }}
+      {{ session.user ? '管理昵称、头像、邮箱和登录记录。' : '使用邮箱验证码，无需设置密码。' }}
     </p>
     <p v-if="error" class="notice error" role="alert">{{ error }}</p>
     <p v-if="notice" class="notice" role="status">{{ notice }}</p>
@@ -230,6 +245,31 @@ function leaveInvite() {
       <p class="field-hint">
         方形头像，图片会居中裁切。支持 PNG、JPEG、WebP，最多 2 MiB、400 万像素。
       </p>
+      <section class="account-section" aria-labelledby="nickname-heading">
+        <h2 id="nickname-heading"><label for="account-nickname">昵称</label></h2>
+        <form class="nickname-form" @submit.prevent="saveNickname">
+          <input
+            id="account-nickname"
+            v-model="nickname"
+            name="nickname"
+            autocomplete="nickname"
+            maxlength="40"
+            required
+            :disabled="busy"
+            aria-describedby="nickname-hint"
+          />
+          <button
+            class="quiet-button"
+            type="submit"
+            :disabled="busy || !nickname.trim() || nickname.trim() === session.user.name"
+          >
+            保存昵称
+          </button>
+        </form>
+        <p id="nickname-hint" class="account-caption">
+          1 至 40 个字，群友会在文章署名和用户墙看到这个名字。
+        </p>
+      </section>
       <section class="account-section" aria-labelledby="email-heading">
         <h2 id="email-heading">登录邮箱</h2>
         <p class="account-value">{{ email?.masked || '尚未绑定邮箱' }}</p>
@@ -331,3 +371,28 @@ function leaveInvite() {
     </template>
   </section>
 </template>
+
+<style scoped>
+.nickname-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  max-width: 480px;
+  margin-top: 12px;
+}
+.nickname-form input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+}
+.nickname-form button {
+  flex-shrink: 0;
+}
+@media (max-width: 400px) {
+  .nickname-form input {
+    flex-basis: 100%;
+  }
+}
+</style>

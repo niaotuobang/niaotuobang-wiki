@@ -203,6 +203,7 @@ func (a *App) login(w http.ResponseWriter, u User) error {
 
 func (a *App) routes() {
 	a.route("GET /api/v1/community", "read", a.community)
+	a.route("PATCH /api/v1/account/profile", "read", a.updateProfile)
 	a.route("GET /api/v1/me", "public", func(w http.ResponseWriter, r *http.Request, u *User) error {
 		a.authMu.Lock()
 		defer a.authMu.Unlock()
