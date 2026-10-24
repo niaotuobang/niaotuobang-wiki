@@ -192,3 +192,38 @@ func TestInviteNotesAndMemberHistory(t *testing.T) {
 	}
 	(&testClient{t: t, app: a}).call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "join", "target": "second@example.com", "invite": token}, 403)
 }
+
+func TestAllowlistedEmailCreatesOnlyVerifiedOrdinaryUser(t *testing.T) {
+	a, _, sender := identityTestApp(t)
+	cfg := a.auth.cfg
+	cfg.AllowedRegistrationEmails = []string{"Allowed@example.com"}
+	if err := a.initAuth(cfg); err != nil {
+		t.Fatal(err)
+	}
+	guest := &testClient{t: t, app: a}
+	v := guest.call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "login", "target": "allowed@example.com"}, 202)
+	var count int
+	a.store.DB.QueryRow(`SELECT count(*) FROM user_identities`).Scan(&count)
+	if count != 0 {
+		t.Fatal("user created before verification")
+	}
+	guest.call("POST", "/api/v1/auth/login-code", map[string]string{"challenge_id": v["challenge_id"].(string), "code": sender.last().code}, 200)
+	var role string
+	a.store.DB.QueryRow(`SELECT access_role FROM users WHERE id=(SELECT user_id FROM user_identities LIMIT 1)`).Scan(&role)
+	if role != "user" {
+		t.Fatal("allowlist registration granted privileged role")
+	}
+	guest.call("GET", "/api/v1/articles", nil, 200)
+	sender.mu.Lock()
+	before := len(sender.messages)
+	sender.mu.Unlock()
+	other := &testClient{t: t, app: a}
+	other.call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "login", "target": "unlisted@example.com"}, 202)
+	sender.mu.Lock()
+	after := len(sender.messages)
+	sender.mu.Unlock()
+	if before != after {
+		t.Fatal("non-allowlisted registration sent email")
+	}
+	guest.call("POST", "/api/v1/auth/login-code", map[string]string{"challenge_id": v["challenge_id"].(string), "code": sender.last().code}, 400)
+}

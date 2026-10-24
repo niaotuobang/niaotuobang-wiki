@@ -28,6 +28,7 @@ type CodeSender interface {
 	Send(context.Context, string, string, string, string) error
 }
 type AuthConfig struct {
+	AllowedRegistrationEmails                                              []string
 	TrustedProxies                                                         []netip.Prefix
 	SessionDays, ReauthSeconds                                             int
 	Secret                                                                 []byte
@@ -36,8 +37,9 @@ type AuthConfig struct {
 	MaxAttempts, TargetHour, TargetDay, IPHour, SMSDay, SMSMonth, EmailDay int
 }
 type authService struct {
-	cfg   AuthConfig
-	slots chan struct{}
+	cfg                AuthConfig
+	slots              chan struct{}
+	registrationEmails map[string]bool
 }
 
 func (a *App) initAuth(c AuthConfig) error {
@@ -85,6 +87,17 @@ func (a *App) initAuth(c AuthConfig) error {
 	}
 	c.Secret = append([]byte(nil), c.Secret...)
 	service := &authService{cfg: c, slots: make(chan struct{}, 2)}
+	service.registrationEmails = map[string]bool{}
+	if len(c.AllowedRegistrationEmails) > 100 {
+		return fmt.Errorf("registration email allowlist is limited to 100 entries")
+	}
+	for _, address := range c.AllowedRegistrationEmails {
+		address, err := normalizeIdentity("email", address)
+		if err != nil {
+			return fmt.Errorf("invalid registration email allowlist")
+		}
+		service.registrationEmails[service.digest("identity-index", "email", address)] = true
+	}
 	check := service.digest("key-check", "wiki-v1")
 	var stored string
 	e := a.store.DB.QueryRow(`SELECT value FROM settings WHERE key='auth_key_check'`).Scan(&stored)
@@ -394,6 +407,9 @@ func (a *App) issueChallenge(w http.ResponseWriter, r *http.Request, u *User) er
 		if e == sql.ErrNoRows || b.Purpose == "recover" && role == "system_admin" || b.Purpose == "reauth" && (u == nil || uid != u.ID || u.Role == "system_admin") {
 			send = false
 		}
+		if e == sql.ErrNoRows && b.Purpose == "login" && b.Channel == "email" && a.auth.registrationEmails[lookup] {
+			send = true
+		}
 	} else if u != nil {
 		uid = u.ID
 	}
@@ -495,6 +511,26 @@ func (a *App) identityRoutes() {
 			var token string
 			e := a.withChallenge(r, p, purpose, func(tx *sql.Tx, c challenge) error {
 				var e error
+				if purpose == "login" && c.UserID == "" && c.Kind == "email" && a.auth.registrationEmails[c.Lookup] {
+					var existing int
+					if e = tx.QueryRow(`SELECT count(*) FROM user_identities WHERE kind='email' AND lookup_hash=?`, c.Lookup).Scan(&existing); e != nil {
+						return e
+					}
+					if existing != 0 {
+						return fail(400, "INVALID_CODE", "验证码无效或已过期，请重新获取")
+					}
+					u = User{ID: newID(), Name: "群友", Login: "member-" + newID(), Role: "user", CanEdit: true}
+					if e = insertUser(tx, u, []byte{}); e != nil {
+						return e
+					}
+					if e = insertIdentity(tx, u.ID, c); e != nil {
+						return e
+					}
+					if e = audit(tx, u.ID, "auth.allowlist_join", u.ID); e != nil {
+						return e
+					}
+					c.UserID = u.ID
+				}
 				u, e = userByID(tx, c.UserID)
 				if e != nil {
 					return e
