@@ -21,6 +21,12 @@ func TestEmailOnlyConfiguration(t *testing.T) {
 	if cfg.Phone != nil || cfg.Email == nil {
 		t.Fatal("expected email-only authentication")
 	}
+	t.Setenv("AUTH_INITIAL_ADMIN_EMAIL", "owner@example.test")
+	t.Setenv("AUTH_INITIAL_ADMIN_NAME", "初始管理员")
+	cfg, err = loadAuthConfig()
+	if err != nil || cfg.InitialAdminEmail != "owner@example.test" || cfg.InitialAdminName != "初始管理员" {
+		t.Fatal("initial administrator configuration not loaded")
+	}
 	t.Setenv("SMTP_PASSWORD", "")
 	if _, err := loadAuthConfig(); err == nil {
 		t.Fatal("missing email configuration accepted")

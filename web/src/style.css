@@ -1394,6 +1394,9 @@ mark {
   grid-template-columns: 230px minmax(0, 1fr);
   gap: 35px;
 }
+.history-without-versions {
+  grid-template-columns: minmax(0, 1fr);
+}
 .version-list button {
   display: block;
   text-align: left;
@@ -1439,6 +1442,62 @@ mark {
 }
 .version-heading h2 {
   font-size: 23px;
+}
+.version-list .version-author {
+  font-size: 12px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.version-time {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 7px;
+  line-height: 1.6;
+}
+.version-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 30px;
+  margin: 22px 0 28px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+.version-meta div {
+  min-width: 0;
+}
+.version-meta dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.version-meta dd {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.version-summary {
+  flex-basis: 100%;
+}
+.trash-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.trash-notice p {
+  margin-top: 5px;
+}
+.trash-notice .quiet-button {
+  flex-shrink: 0;
+  text-decoration: none;
+  margin: 0;
+  border: 1px solid var(--line);
+  background: white;
+}
+.trash-history-link {
+  margin-top: 14px;
 }
 .comparison-select {
   display: flex;
@@ -1537,16 +1596,62 @@ mark {
   font-size: 12px;
   margin-top: 5px;
 }
-.account-monogram {
+.user-avatar.user-avatar {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0;
+  line-height: 1;
   background: var(--accent-light);
   color: var(--accent);
-  font-size: 18px;
+  font-size: 14px;
+}
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.user-avatar.user-avatar > span {
+  display: block;
+  margin: 0;
+  line-height: 1;
+  font-size: inherit;
+  color: inherit;
+}
+.header-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-account > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.version-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.version-list .version-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.avatar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0 12px;
+}
+.member-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .account-section {
   padding: 28px 0;

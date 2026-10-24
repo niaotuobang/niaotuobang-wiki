@@ -19,6 +19,8 @@ const router = createRouter({
     { path: '/drafts', component: () => import('./pages/Drafts.vue') },
     { path: '/account', component: () => import('./pages/Account.vue') },
     { path: '/admin', component: () => import('./pages/Admin.vue') },
+    { path: '/trash', component: () => import('./pages/Trash.vue') },
+    { path: '/trash/:id', component: () => import('./pages/History.vue') },
     { path: '/:pathMatch(.*)*', component: () => import('./pages/NotFound.vue') },
   ],
   scrollBehavior(to, from, saved) {

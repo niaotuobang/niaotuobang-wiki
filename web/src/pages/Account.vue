@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, clearPrivateState, message, refreshSession, refreshTags, session } from '../api'
+import Avatar from '../components/Avatar.vue'
 const route = useRoute(),
   router = useRouter()
 const invite = ref(String(route.query.invite || ''))
@@ -10,7 +11,39 @@ const error = ref(''),
   notice = ref(''),
   busy = ref(false),
   emailReady = ref(false)
+const setupAdminConfigured = ref(false),
+  setupNameConfigured = ref(false)
 const email = ref<{ id: string; masked: string } | null>(null)
+const avatarInput = ref<HTMLInputElement>()
+async function uploadAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  await run(async () => {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
+      throw new Error('请选择 PNG、JPEG 或 WebP 图片')
+    if (file.size > 2 * 1024 * 1024) throw new Error('头像不能超过 2 MiB')
+    const response = await fetch('/api/v1/account/avatar', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': file.type, 'X-CSRF-Token': session.csrf_token },
+      body: file,
+    })
+    const result = await response.json()
+    if (response.status === 401) await refreshSession()
+    if (!response.ok) throw new Error(result.error?.message || '头像上传失败，请重试')
+    await refreshSession()
+    notice.value = '头像已更新'
+  })
+}
+async function removeAvatar() {
+  await run(async () => {
+    await api('/account/avatar', { method: 'DELETE' })
+    await refreshSession()
+    notice.value = '已恢复默认头像'
+  })
+}
 const records = ref<{ id: string; current: boolean; created_at: string }[]>([])
 const form = reactive({ target: '', code: '', name: '', token: '' })
 const challenge = ref(''),
@@ -43,7 +76,10 @@ watch(purpose, () => {
   error.value = ''
 })
 async function load() {
-  emailReady.value = (await api('/auth/options')).email
+  const options = await api('/auth/options')
+  emailReady.value = options.email
+  setupAdminConfigured.value = !!options.setup_admin_configured
+  setupNameConfigured.value = !!options.setup_name_configured
   const id = session.user?.id
   if (id) {
     const [identities, sessions] = await Promise.all([
@@ -159,18 +195,41 @@ function leaveInvite() {
   <section :class="session.user ? 'account-page' : 'auth-page'">
     <h1>{{ title }}</h1>
     <p class="page-description">
-      {{ session.user ? '管理邮箱和登录记录。' : '使用邮箱验证码，无需设置密码。' }}
+      {{ session.user ? '管理头像、邮箱和登录记录。' : '使用邮箱验证码，无需设置密码。' }}
     </p>
     <p v-if="error" class="notice error" role="alert">{{ error }}</p>
     <p v-if="notice" class="notice" role="status">{{ notice }}</p>
     <template v-if="session.user">
       <div class="account-profile">
-        <span class="account-monogram" aria-hidden="true">{{ session.user.name.slice(0, 1) }}</span>
+        <Avatar :name="session.user.name" :media-id="session.user.avatar_media_id" :size="64" />
         <div>
           <strong>{{ session.user.name }}</strong>
           <p>{{ roleLabel }}{{ session.user.can_edit === false ? ' · 只读' : '' }}</p>
         </div>
       </div>
+      <div class="avatar-controls">
+        <button class="quiet-button" :disabled="busy" @click="avatarInput?.click()">
+          {{ busy ? '处理中…' : session.user.avatar_media_id ? '更换头像' : '上传头像' }}</button
+        ><button
+          v-if="session.user.avatar_media_id"
+          class="text-link"
+          :disabled="busy"
+          @click="removeAvatar"
+        >
+          使用默认头像</button
+        ><input
+          ref="avatarInput"
+          class="sr-only"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          aria-label="上传头像图片"
+          :disabled="busy"
+          @change="uploadAvatar"
+        />
+      </div>
+      <p class="field-hint">
+        方形头像，图片会居中裁切。支持 PNG、JPEG、WebP，最多 2 MiB、400 万像素。
+      </p>
       <section class="account-section" aria-labelledby="email-heading">
         <h2 id="email-heading">登录邮箱</h2>
         <p class="account-value">{{ email?.masked || '尚未绑定邮箱' }}</p>
@@ -221,7 +280,10 @@ function leaveInvite() {
           ><label for="setup-token">初始化凭证</label
           ><input id="setup-token" v-model="form.token" autocomplete="off" required
         /></template>
-        <template v-if="session.setup_needed || joining"
+        <p v-if="session.setup_needed && setupAdminConfigured" class="field-hint">
+          请使用服务器配置的管理员邮箱。验证成功后，将创建系统管理员账号。
+        </p>
+        <template v-if="(session.setup_needed && !setupNameConfigured) || joining"
           ><label for="nickname">昵称</label
           ><input id="nickname" v-model="form.name" maxlength="40" autocomplete="nickname" required
         /></template>

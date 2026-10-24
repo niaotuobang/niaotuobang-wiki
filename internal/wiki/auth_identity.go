@@ -26,6 +26,7 @@ type CodeSender interface {
 	Send(context.Context, string, string, string, string) error
 }
 type AuthConfig struct {
+	InitialAdminEmail, InitialAdminName                                    string
 	AllowedRegistrationEmails                                              []string
 	TrustedProxies                                                         []netip.Prefix
 	SessionDays, ReauthSeconds                                             int
@@ -41,6 +42,18 @@ type authService struct {
 }
 
 func (a *App) initAuth(c AuthConfig) error {
+	c.InitialAdminEmail = strings.TrimSpace(c.InitialAdminEmail)
+	c.InitialAdminName = strings.TrimSpace(c.InitialAdminName)
+	if c.InitialAdminEmail != "" {
+		address, err := normalizeIdentity("email", c.InitialAdminEmail)
+		if err != nil {
+			return fmt.Errorf("invalid initial administrator email")
+		}
+		c.InitialAdminEmail = address
+	}
+	if len([]rune(c.InitialAdminName)) > 40 || c.InitialAdminName != "" && c.InitialAdminEmail == "" {
+		return fmt.Errorf("initial administrator name requires an email and must not exceed 40 characters")
+	}
 	if len(c.Secret) != 32 {
 		return fmt.Errorf("auth secret must contain exactly 32 random bytes")
 	}
@@ -309,7 +322,7 @@ func (a *App) withChallenge(r *http.Request, p codeProof, purpose string, fn fun
 }
 func userByID(q querier, id string) (User, error) {
 	var u User
-	e := q.QueryRow(`SELECT id,name,login,access_role,can_edit FROM users WHERE id=? AND disabled=0`, id).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit)
+	e := q.QueryRow(`SELECT id,name,login,access_role,can_edit,coalesce(avatar_media_id,'') FROM users WHERE id=? AND disabled=0`, id).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &u.AvatarMediaID)
 	if e == sql.ErrNoRows {
 		return u, fail(400, "INVALID_CODE", "验证码无效或已过期")
 	}
@@ -408,11 +421,17 @@ func (a *App) issueChallenge(w http.ResponseWriter, r *http.Request, u *User) er
 		return e
 	}
 	finish := func(err error) error { tx.Rollback(); a.authMu.Unlock(); return err }
+	if a.setupToken != "" && b.Purpose != "setup" {
+		return finish(fail(403, "SETUP_REQUIRED", "请先完成管理员初始化"))
+	}
 	uid := ""
 	send := true
 	if b.Purpose == "setup" {
 		if b.Channel != "email" || a.setupToken == "" || subtle.ConstantTimeCompare([]byte(a.setupToken), []byte(b.SetupToken)) != 1 {
 			return finish(fail(403, "FORBIDDEN", "初始化凭证无效"))
+		}
+		if a.auth.cfg.InitialAdminEmail != "" && target != a.auth.cfg.InitialAdminEmail {
+			return finish(fail(403, "FORBIDDEN", "请使用服务器配置的初始化管理员邮箱"))
 		}
 		b.Invite = b.SetupToken
 	}
@@ -515,13 +534,19 @@ func (a *App) issueChallenge(w http.ResponseWriter, r *http.Request, u *User) er
 	return nil
 }
 func (a *App) identityRoutes() {
+	a.avatarRoutes()
 	a.route("GET /api/v1/auth/options", "public", func(w http.ResponseWriter, r *http.Request, u *User) error {
 		phone, email := false, false
+		setupEmail, setupName := false, false
+		a.authMu.Lock()
 		if a.auth != nil {
 			phone = a.auth.cfg.Phone != nil
 			email = a.auth.cfg.Email != nil
+			setupEmail = a.setupToken != "" && a.auth.cfg.InitialAdminEmail != ""
+			setupName = setupEmail && a.auth.cfg.InitialAdminName != ""
 		}
-		writeJSON(w, 200, map[string]any{"phone": phone, "email": email, "password": false, "registration": "invite_only"})
+		a.authMu.Unlock()
+		writeJSON(w, 200, map[string]any{"phone": phone, "email": email, "password": false, "registration": "invite_only", "setup_admin_configured": setupEmail, "setup_name_configured": setupName})
 		return nil
 	})
 	a.route("POST /api/v1/auth/challenges", "public", a.issueChallenge)

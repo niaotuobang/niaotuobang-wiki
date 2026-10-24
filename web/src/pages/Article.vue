@@ -5,6 +5,7 @@ import { api, dateLabel, editable, message } from '../api'
 import type { Article } from '../types'
 import DocumentView from '../components/DocumentView.vue'
 import Icon from '../components/Icon.vue'
+import Avatar from '../components/Avatar.vue'
 const route = useRoute(),
   router = useRouter(),
   article = ref<Article>(),
@@ -112,7 +113,13 @@ onMounted(load)
         </section>
         <section>
           <h2>最后补充的人</h2>
-          <p class="editor-name">{{ article.updated_by_name }}</p>
+          <p class="editor-name version-editor">
+            <Avatar
+              :name="article.updated_by_name"
+              :media-id="article.updated_by_avatar"
+              :size="32"
+            />{{ article.updated_by_name }}
+          </p>
           <p class="muted">共同记录这个群的故事</p>
         </section>
         <section>

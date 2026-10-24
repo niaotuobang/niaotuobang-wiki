@@ -30,25 +30,26 @@ type Tag struct {
 	Count       int    `json:"count"`
 }
 type Article struct {
-	ID            string   `json:"id"`
-	Title         string   `json:"title"`
-	Document      Node     `json:"document,omitzero"`
-	SchemaVersion int      `json:"schema_version"`
-	PlainText     string   `json:"plain_text"`
-	Tags          []Tag    `json:"tags"`
-	MediaKinds    []string `json:"media_kinds"`
-	Status        string   `json:"status"`
-	Revision      int      `json:"revision"`
-	OccurredAt    string   `json:"occurred_at"`
-	DatePrecision string   `json:"date_precision"`
-	AuthorID      string   `json:"author_id"`
-	AuthorName    string   `json:"author_name"`
-	UpdatedBy     string   `json:"updated_by"`
-	UpdatedByName string   `json:"updated_by_name"`
-	CreatedAt     string   `json:"created_at"`
-	UpdatedAt     string   `json:"updated_at"`
-	ChangeSummary string   `json:"change_summary"`
-	DeletedAt     string   `json:"deleted_at,omitempty"`
+	ID              string   `json:"id"`
+	Title           string   `json:"title"`
+	Document        Node     `json:"document,omitzero"`
+	SchemaVersion   int      `json:"schema_version"`
+	PlainText       string   `json:"plain_text"`
+	Tags            []Tag    `json:"tags"`
+	MediaKinds      []string `json:"media_kinds"`
+	Status          string   `json:"status"`
+	Revision        int      `json:"revision"`
+	OccurredAt      string   `json:"occurred_at"`
+	DatePrecision   string   `json:"date_precision"`
+	AuthorID        string   `json:"author_id"`
+	AuthorName      string   `json:"author_name"`
+	UpdatedBy       string   `json:"updated_by"`
+	UpdatedByName   string   `json:"updated_by_name"`
+	UpdatedByAvatar string   `json:"updated_by_avatar,omitempty"`
+	CreatedAt       string   `json:"created_at"`
+	UpdatedAt       string   `json:"updated_at"`
+	ChangeSummary   string   `json:"change_summary"`
+	DeletedAt       string   `json:"deleted_at,omitempty"`
 }
 type WriteArticle struct {
 	Title            string   `json:"title"`
@@ -61,11 +62,12 @@ type WriteArticle struct {
 	Status           string   `json:"status"`
 }
 type User struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Login   string `json:"login"`
-	Role    string `json:"role"`
-	CanEdit bool   `json:"can_edit"`
+	AvatarMediaID string `json:"avatar_media_id,omitempty"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Login         string `json:"login"`
+	Role          string `json:"role"`
+	CanEdit       bool   `json:"can_edit"`
 }
 
 func (u User) IsAdmin() bool  { return u.Role == "admin" || u.Role == "system_admin" }

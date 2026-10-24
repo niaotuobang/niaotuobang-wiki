@@ -12,7 +12,7 @@ import (
 var migrationFiles embed.FS
 
 func migrate(db *sql.DB, version int, dir string) error {
-	const current = 7
+	const current = 8
 	if version > current {
 		return fmt.Errorf("database schema %d is newer than supported version %d", version, current)
 	}
@@ -36,7 +36,7 @@ func migrate(db *sql.DB, version int, dir string) error {
 	for _, m := range []struct {
 		version int
 		file    string
-	}{{1, "001_initial.sql"}, {2, "002_link_context.sql"}, {3, "003_member_access.sql"}, {4, "004_private_accounts.sql"}, {5, "005_invite_history.sql"}, {6, "006_invite_notes.sql"}, {7, "007_email_only.sql"}} {
+	}{{1, "001_initial.sql"}, {2, "002_link_context.sql"}, {3, "003_member_access.sql"}, {4, "004_private_accounts.sql"}, {5, "005_invite_history.sql"}, {6, "006_invite_notes.sql"}, {7, "007_email_only.sql"}, {8, "008_user_avatars.sql"}} {
 		if m.version <= version {
 			continue
 		}
@@ -48,7 +48,7 @@ func migrate(db *sql.DB, version int, dir string) error {
 			return fmt.Errorf("migration %d: %w", m.version, e)
 		}
 	}
-	if _, e = tx.Exec(`PRAGMA user_version=7`); e != nil {
+	if _, e = tx.Exec(`PRAGMA user_version=8`); e != nil {
 		return e
 	}
 	return tx.Commit()

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, clearPrivateState, message, refreshSession, refreshTags, session } from '../api'
+import Avatar from '../components/Avatar.vue'
 const router = useRouter()
 async function loginAgain() {
   try {
@@ -104,6 +105,7 @@ async function makeInvite() {
   }
 }
 interface Member {
+  avatar_media_id?: string
   id: string
   name: string
   login: string
@@ -280,9 +282,12 @@ function inviteState(value: string) {
         禁用后无法登录，已有登录立即失效；解除禁用后需要重新获取验证码。文章和署名保留。
       </p>
       <div v-for="member in members" :key="member.id" class="member-row">
-        <div>
-          <strong>{{ member.name }}</strong
-          ><small>{{ member.disabled ? '已禁用' : '正常' }}</small>
+        <div class="member-identity">
+          <Avatar :name="member.name" :media-id="member.avatar_media_id" :size="32" />
+          <div>
+            <strong>{{ member.name }}</strong
+            ><small>{{ member.disabled ? '已禁用' : '正常' }}</small>
+          </div>
         </div>
         <select v-model="member.role" :aria-label="member.name + '的角色'">
           <option value="user">普通用户</option>
@@ -321,9 +326,10 @@ function inviteState(value: string) {
     </section>
     <section class="settings-section">
       <h2>回收站</h2>
+      <RouterLink class="text-link" to="/trash">打开回收站，查看正文与历史</RouterLink>
       <p v-if="!data.trash.length" class="muted">没有放入回收站的文章。</p>
       <div v-for="a in data.trash" :key="a.id" class="trash-row">
-        <span>{{ a.title || '未命名文章' }}</span
+        <RouterLink :to="'/trash/' + a.id">{{ a.title || '未命名文章' }}</RouterLink
         ><button class="text-link" @click="restore(a.id)">恢复文章</button>
       </div>
     </section>

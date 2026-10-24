@@ -33,9 +33,11 @@ export interface Article {
   author_name: string
   updated_by: string
   updated_by_name: string
+  updated_by_avatar?: string
   created_at: string
   updated_at: string
   change_summary: string
+  deleted_at?: string
 }
 export interface ArticleWrite {
   title: string
@@ -48,6 +50,7 @@ export interface ArticleWrite {
   status: string
 }
 export interface User {
+  avatar_media_id?: string
   id: string
   name: string
   login: string

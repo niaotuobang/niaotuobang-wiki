@@ -13,12 +13,15 @@ import {
 } from './api'
 import Icon from './components/Icon.vue'
 import brandMark from './assets/brand.svg'
+import Avatar from './components/Avatar.vue'
 const route = useRoute(),
   router = useRouter(),
   search = ref(''),
   menu = ref(false),
   error = ref('')
-const articlePage = computed(() => route.path.startsWith('/articles/'))
+const articlePage = computed(
+  () => route.path.startsWith('/articles/') || route.path.startsWith('/trash/'),
+)
 const navigation = computed(() => catalog.tags.filter((t) => t.show_in_nav))
 watch(
   () => route.fullPath,
@@ -100,7 +103,14 @@ onUnmounted(() => {
         <RouterLink v-if="administrative()" to="/admin">管理</RouterLink
         ><RouterLink v-if="editable()" to="/articles/new" class="write-link"
           ><Icon name="plus" :size="18" />写文章</RouterLink
-        ><RouterLink to="/account">{{ session.user?.name || '登录' }}</RouterLink>
+        ><RouterLink to="/account" class="header-account"
+          ><Avatar
+            v-if="session.user"
+            :name="session.user.name"
+            :media-id="session.user.avatar_media_id"
+            :size="24"
+          /><span>{{ session.user?.name || '登录' }}</span></RouterLink
+        >
       </nav>
       <button
         v-if="session.user"
@@ -146,9 +156,12 @@ onUnmounted(() => {
           <RouterLink to="/tags" class="all-tags"
             >全部标签 <Icon name="arrow" :size="15"
           /></RouterLink>
-          <div v-if="editable()" class="draft-nav-section">
-            <RouterLink to="/drafts" class="primary-nav"
+          <div v-if="editable() || administrative()" class="draft-nav-section">
+            <RouterLink v-if="editable()" to="/drafts" class="primary-nav"
               ><Icon name="edit" :size="18" />我的草稿</RouterLink
+            >
+            <RouterLink v-if="administrative()" to="/trash" class="primary-nav"
+              ><Icon name="trash" :size="18" />回收站</RouterLink
             >
           </div>
           <div class="mobile-account-links">

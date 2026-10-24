@@ -163,7 +163,7 @@ func (a *App) session(r *http.Request) (*User, string) {
 		return nil, ""
 	}
 	var u User
-	err := a.store.DB.QueryRow(`SELECT u.id,u.name,u.login,u.access_role,u.can_edit FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0`, hashToken(token), now()).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit)
+	err := a.store.DB.QueryRow(`SELECT u.id,u.name,u.login,u.access_role,u.can_edit,coalesce(u.avatar_media_id,'') FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0`, hashToken(token), now()).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &u.AvatarMediaID)
 	if err != nil {
 		return nil, ""
 	}
@@ -223,7 +223,7 @@ func (a *App) routes() {
 		}
 		var u User
 		var disabled bool
-		if e := a.store.DB.QueryRow(`SELECT id,name,login,access_role,can_edit,disabled FROM users WHERE id='demo-editor'`).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &disabled); e != nil {
+		if e := a.store.DB.QueryRow(`SELECT id,name,login,access_role,can_edit,disabled,coalesce(avatar_media_id,'') FROM users WHERE id='demo-editor'`).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &disabled, &u.AvatarMediaID); e != nil {
 			return e
 		}
 		if disabled {
@@ -475,12 +475,24 @@ func (a *App) version(id, version string) (Article, error) {
 	}
 	var v Article
 	e = json.Unmarshal([]byte(s), &v)
-	return v, e
+	if e != nil {
+		return v, e
+	}
+	var avatar string
+	err := a.store.DB.QueryRow(`SELECT coalesce(avatar_media_id,'') FROM users WHERE id=?`, v.UpdatedBy).Scan(&avatar)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return v, err
+	}
+	v.UpdatedByAvatar = avatar
+	return v, nil
 }
 func (a *App) versions(w http.ResponseWriter, r *http.Request, u *User) error {
 	if e := a.readPublished(r.PathValue("id"), u); e != nil {
 		return e
 	}
+	return a.listVersions(w, r)
+}
+func (a *App) listVersions(w http.ResponseWriter, r *http.Request) error {
 	limit := 20
 	if value := r.URL.Query().Get("limit"); value != "" {
 		if n, e := strconv.Atoi(value); e == nil && n > 0 {
@@ -498,7 +510,7 @@ func (a *App) versions(w http.ResponseWriter, r *http.Request, u *User) error {
 		}
 		cursor = n
 	}
-	rows, e := a.store.DB.Query(`SELECT json_remove(snapshot,'$.document','$.plain_text') FROM article_versions WHERE article_id=? AND revision<? ORDER BY revision DESC LIMIT ?`, r.PathValue("id"), cursor, limit+1)
+	rows, e := a.store.DB.Query(`SELECT json_set(json_remove(v.snapshot,'$.document','$.plain_text'),'$.updated_by_avatar',coalesce(u.avatar_media_id,'')) FROM article_versions v LEFT JOIN users u ON u.id=json_extract(v.snapshot,'$.updated_by') WHERE v.article_id=? AND v.revision<? ORDER BY v.revision DESC LIMIT ?`, r.PathValue("id"), cursor, limit+1)
 	if e != nil {
 		return e
 	}
@@ -670,7 +682,8 @@ func (a *App) tagRoutes() {
 	})
 }
 func (a *App) adminRoutes() {
-	a.route("GET /api/v1/admin", "admin", func(w http.ResponseWriter, r *http.Request, _ *User) error {
+	a.trashRoutes()
+	a.route("GET /api/v1/admin", "admin", func(w http.ResponseWriter, r *http.Request, u *User) error {
 		counts := map[string]int{}
 		for key, query := range map[string]string{"articles": `SELECT count(*) FROM articles WHERE status='published' AND deleted_at=''`, "members": `SELECT count(*) FROM users`, "media": `SELECT count(*) FROM media WHERE state='ready'`} {
 			var n int
@@ -679,7 +692,7 @@ func (a *App) adminRoutes() {
 			}
 			counts[key] = n
 		}
-		rows, e := a.store.DB.Query(`SELECT id,title,deleted_at FROM articles WHERE deleted_at<>'' ORDER BY deleted_at DESC LIMIT 100`)
+		rows, e := a.store.DB.Query(`SELECT id,title,deleted_at FROM articles WHERE deleted_at<>'' AND (status='published' OR author_id=?) ORDER BY deleted_at DESC LIMIT 100`, u.ID)
 		if e != nil {
 			return e
 		}
@@ -712,7 +725,7 @@ func (a *App) adminRoutes() {
 	})
 }
 
-var pagePath = regexp.MustCompile(`^/(|tags|tags/[A-Za-z0-9_-]+|articles/new|articles/[A-Za-z0-9_-]+(?:/edit|/history)?|timeline|search|drafts|account|admin)$`)
+var pagePath = regexp.MustCompile(`^/(|tags|tags/[A-Za-z0-9_-]+|articles/new|articles/[A-Za-z0-9_-]+(?:/edit|/history)?|timeline|search|drafts|account|admin|trash|trash/[A-Za-z0-9_-]+)$`)
 
 func (a *App) static(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" && r.Method != "HEAD" {

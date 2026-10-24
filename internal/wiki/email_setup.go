@@ -25,6 +25,14 @@ func (a *App) setupWithEmail(w http.ResponseWriter, r *http.Request, _ *User) er
 			return fail(403, "FORBIDDEN", "初始化凭证无效")
 		}
 		name := strings.TrimSpace(b.Name)
+		if address := a.auth.cfg.InitialAdminEmail; address != "" {
+			if c.Lookup != a.auth.digest("identity-index", "email", address) {
+				return fail(403, "FORBIDDEN", "请使用服务器配置的初始化管理员邮箱")
+			}
+			if a.auth.cfg.InitialAdminName != "" {
+				name = a.auth.cfg.InitialAdminName
+			}
+		}
 		if name == "" || len([]rune(name)) > 40 {
 			return fail(400, "VALIDATION_ERROR", "请填写昵称")
 		}

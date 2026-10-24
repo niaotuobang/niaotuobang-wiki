@@ -68,5 +68,5 @@ func loadAuthConfig() (*wiki.AuthConfig, error) {
 		}
 		trusted = append(trusted, p)
 	}
-	return &wiki.AuthConfig{AllowedRegistrationEmails: strings.FieldsFunc(os.Getenv("AUTH_REGISTRATION_EMAIL_ALLOWLIST"), func(r rune) bool { return r == ',' || r == '\n' }), TrustedProxies: trusted, SessionDays: vals["AUTH_SESSION_DAYS"], ReauthSeconds: vals["AUTH_REAUTH_SECONDS"], Secret: secret, Email: email, TTL: ttl, Resend: resend, MaxAttempts: vals["AUTH_CODE_MAX_ATTEMPTS"], TargetHour: vals["AUTH_SEND_PER_TARGET_HOUR"], TargetDay: vals["AUTH_SEND_PER_TARGET_DAY"], IPHour: vals["AUTH_SEND_PER_IP_HOUR"], EmailDay: vals["AUTH_EMAIL_DAILY_LIMIT"]}, nil
+	return &wiki.AuthConfig{InitialAdminEmail: os.Getenv("AUTH_INITIAL_ADMIN_EMAIL"), InitialAdminName: os.Getenv("AUTH_INITIAL_ADMIN_NAME"), AllowedRegistrationEmails: strings.FieldsFunc(os.Getenv("AUTH_REGISTRATION_EMAIL_ALLOWLIST"), func(r rune) bool { return r == ',' || r == '\n' }), TrustedProxies: trusted, SessionDays: vals["AUTH_SESSION_DAYS"], ReauthSeconds: vals["AUTH_REAUTH_SECONDS"], Secret: secret, Email: email, TTL: ttl, Resend: resend, MaxAttempts: vals["AUTH_CODE_MAX_ATTEMPTS"], TargetHour: vals["AUTH_SEND_PER_TARGET_HOUR"], TargetDay: vals["AUTH_SEND_PER_TARGET_DAY"], IPHour: vals["AUTH_SEND_PER_IP_HOUR"], EmailDay: vals["AUTH_EMAIL_DAILY_LIMIT"]}, nil
 }

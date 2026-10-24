@@ -8,7 +8,7 @@ import (
 func (a *App) memberRoutes() {
 	a.route("GET /api/v1/admin/members", "admin", func(w http.ResponseWriter, r *http.Request, _ *User) error {
 		cursor := r.URL.Query().Get("cursor")
-		rows, e := a.store.DB.Query(`SELECT id,name,login,access_role,can_edit,disabled FROM users WHERE (?='' OR id>?) ORDER BY id LIMIT 21`, cursor, cursor)
+		rows, e := a.store.DB.Query(`SELECT id,name,login,access_role,can_edit,disabled,coalesce(avatar_media_id,'') FROM users WHERE (?='' OR id>?) ORDER BY id LIMIT 21`, cursor, cursor)
 		if e != nil {
 			return e
 		}
@@ -17,10 +17,10 @@ func (a *App) memberRoutes() {
 		for rows.Next() {
 			var u User
 			var disabled bool
-			if e = rows.Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &disabled); e != nil {
+			if e = rows.Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &disabled, &u.AvatarMediaID); e != nil {
 				return e
 			}
-			out = append(out, map[string]any{"id": u.ID, "name": u.Name, "login": u.Login, "role": u.Role, "can_edit": u.CanEdit, "disabled": disabled})
+			out = append(out, map[string]any{"id": u.ID, "name": u.Name, "login": u.Login, "role": u.Role, "can_edit": u.CanEdit, "disabled": disabled, "avatar_media_id": u.AvatarMediaID})
 		}
 		if e = rows.Err(); e != nil {
 			return e

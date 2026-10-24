@@ -93,6 +93,19 @@ func (a *App) mediaReadable(m Media, u *User) bool {
 	if u != nil && m.Owner == u.ID {
 		return true
 	}
+	if u != nil {
+		var n int
+		if err := a.store.DB.QueryRow(`SELECT count(*) FROM users WHERE avatar_media_id=?`, m.ID).Scan(&n); err == nil && n > 0 {
+			return true
+		}
+	}
+	if u != nil && (u.Role == "admin" || u.Role == "system_admin") {
+		var n int
+		err := a.store.DB.QueryRow(`SELECT count(*) FROM article_media am JOIN articles a ON a.id=am.article_id WHERE am.media_id=? AND a.status='published' AND a.deleted_at<>''`, m.ID).Scan(&n)
+		if err == nil && n > 0 {
+			return true
+		}
+	}
 	var n int
 	e := a.store.DB.QueryRow(`SELECT count(*) FROM article_media am JOIN articles a ON a.id=am.article_id WHERE am.media_id=? AND a.status='published' AND a.deleted_at=''`, m.ID).Scan(&n)
 	return e == nil && n > 0
