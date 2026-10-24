@@ -53,7 +53,7 @@ func loadAuthConfig() (*wiki.AuthConfig, error) {
 		return nil, fmt.Errorf("verification TTL must be 300 seconds and resend interval at least 60 seconds")
 	}
 
-	email, e := wiki.NewSMTPSender(wiki.SMTPConfig{Host: os.Getenv("SMTP_HOST"), ProxyURL: os.Getenv("SMTP_PROXY_URL"), Port: vals["SMTP_PORT"], TLSMode: env("SMTP_TLS_MODE", "implicit_tls"), User: os.Getenv("SMTP_USER"), Password: os.Getenv("SMTP_PASSWORD"), From: os.Getenv("SMTP_FROM"), ConnectTimeout: time.Duration(vals["SMTP_CONNECT_TIMEOUT_SECONDS"]) * time.Second, SendTimeout: time.Duration(vals["SMTP_SEND_TIMEOUT_SECONDS"]) * time.Second})
+	email, e := wiki.NewSMTPSender(wiki.SMTPConfig{SiteURL: os.Getenv("BASE_URL"), Host: os.Getenv("SMTP_HOST"), ProxyURL: os.Getenv("SMTP_PROXY_URL"), Port: vals["SMTP_PORT"], TLSMode: env("SMTP_TLS_MODE", "implicit_tls"), User: os.Getenv("SMTP_USER"), Password: os.Getenv("SMTP_PASSWORD"), From: os.Getenv("SMTP_FROM"), ConnectTimeout: time.Duration(vals["SMTP_CONNECT_TIMEOUT_SECONDS"]) * time.Second, SendTimeout: time.Duration(vals["SMTP_SEND_TIMEOUT_SECONDS"]) * time.Second})
 	if e != nil {
 		return nil, e
 	}

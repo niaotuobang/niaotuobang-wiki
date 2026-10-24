@@ -3,8 +3,12 @@ package wiki
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/mail"
 	"strings"
 	"sync"
 	"testing"
@@ -103,14 +107,38 @@ func TestOldIdentityCodeRevokedWhenContactChanges(t *testing.T) {
 	anon.call("POST", "/api/v1/auth/login-code", map[string]string{"challenge_id": p["challenge_id"].(string), "code": code}, 400)
 }
 func TestVerificationEmailAndSenderValidation(t *testing.T) {
-	raw, e := mailCodeMessage("sender@example.com", "member@example.com", "123456", "bind")
+	raw, e := mailCodeMessage("sender@example.com", "member@example.com", "123456", "bind", "https://wiki.example.com")
 	if e != nil {
 		t.Fatal(e)
 	}
 	if !strings.Contains(string(raw), "multipart/alternative") || !strings.Contains(string(raw), "123456") {
 		t.Fatal("verification mail omitted alternatives or code")
 	}
-	if _, e = mailCodeMessage("sender@example.com", "member@example.com\r\nBcc: other@example.com", "123456", "bind"); e == nil {
+	message, err := mail.ReadMessage(strings.NewReader(string(raw)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, params, err := mime.ParseMediaType(message.Header.Get("Content-Type"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := multipart.NewReader(message.Body, params["boundary"])
+	for _, kind := range []string{"text/plain", "text/html"} {
+		part, err := parts.NextPart()
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(part)
+		if err != nil || !strings.HasPrefix(part.Header.Get("Content-Type"), kind) || !strings.Contains(string(body), "123456") || !strings.Contains(string(body), "https://wiki.example.com") {
+			t.Fatal("decoded verification mail omitted code or site link")
+		}
+	}
+	for _, badURL := range []string{"javascript:alert(1)", "https://user:password@example.com", "//example.com"} {
+		if _, err := NewSMTPSender(SMTPConfig{SiteURL: badURL, Host: "smtp.example.com", User: "sender@example.com", From: "sender@example.com", Password: "test-only"}); err == nil {
+			t.Fatal("unsafe site link accepted")
+		}
+	}
+	if _, e = mailCodeMessage("sender@example.com", "member@example.com\r\nBcc: other@example.com", "123456", "bind", "https://wiki.example.com"); e == nil {
 		t.Fatal("mail header injection accepted")
 	}
 	if _, e = NewSMTPSender(SMTPConfig{Host: "smtp.example.com", User: "sender@example.com", From: "another@example.com", Password: "test-only"}); e == nil {

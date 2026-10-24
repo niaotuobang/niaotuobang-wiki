@@ -39,12 +39,19 @@ func deliveryResult(err error) string {
 
 type SMTPConfig struct {
 	Host, User, Password, From, TLSMode, ProxyURL string
+	SiteURL                                       string
 	Port                                          int
 	ConnectTimeout, SendTimeout                   time.Duration
 }
 type SMTPSender struct{ config SMTPConfig }
 
 func NewSMTPSender(c SMTPConfig) (*SMTPSender, error) {
+	if c.SiteURL != "" {
+		u, err := url.Parse(c.SiteURL)
+		if err != nil || u.Host == "" || u.User != nil || u.Scheme != "https" && u.Scheme != "http" {
+			return nil, fmt.Errorf("valid HTTP(S) site URL is required")
+		}
+	}
 	if c.Port == 0 {
 		c.Port = 465
 	}
@@ -63,7 +70,7 @@ func NewSMTPSender(c SMTPConfig) (*SMTPSender, error) {
 	}
 	return &SMTPSender{c}, nil
 }
-func mailCodeMessage(from, to, code, purpose string) ([]byte, error) {
+func mailCodeMessage(from, to, code, purpose, siteURL string) ([]byte, error) {
 	if strings.ContainsAny(from+to+code, "\r\n") {
 		return nil, fmt.Errorf("invalid verification message")
 	}
@@ -72,11 +79,11 @@ func mailCodeMessage(from, to, code, purpose string) ([]byte, error) {
 	if action == "" {
 		return nil, fmt.Errorf("invalid verification purpose")
 	}
-	text := fmt.Sprintf("鸟托邦 Wiki\r\n您的%s验证码为：%s。5 分钟内有效，请勿告诉他人。\r\n如果不是您本人操作，请忽略本邮件。", action, code)
+	text, htmlBody := verificationEmailBodies(action, code, siteURL)
 	var out bytes.Buffer
 	multi := multipart.NewWriter(&out)
 	fmt.Fprintf(&out, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%q\r\n\r\n", from, to, mime.QEncoding.Encode("UTF-8", "鸟托邦 Wiki 验证码"), multi.Boundary())
-	for _, p := range []struct{ kind, body string }{{"text/plain", text}, {"text/html", "<h1>鸟托邦 Wiki</h1><p>" + html.EscapeString(action) + "验证码：</p><p><strong>" + html.EscapeString(code) + "</strong></p><p>5 分钟内有效，请勿告诉他人。非本人操作请忽略。</p>"}} {
+	for _, p := range []struct{ kind, body string }{{"text/plain", text}, {"text/html", htmlBody}} {
 		part, e := multi.CreatePart(map[string][]string{"Content-Type": {p.kind + "; charset=UTF-8"}, "Content-Transfer-Encoding": {"quoted-printable"}})
 		if e != nil {
 			return nil, e
@@ -94,9 +101,36 @@ func mailCodeMessage(from, to, code, purpose string) ([]byte, error) {
 	}
 	return out.Bytes(), nil
 }
+
+// Use inline styles and presentation tables so the message remains readable in
+// mail clients that strip stylesheets. The code stays a single selectable string.
+func verificationEmailBodies(action, code, siteURL string) (string, string) {
+	text := fmt.Sprintf("鸟托邦 Wiki\r\n\r\n%s验证码\r\n\r\n%s\r\n\r\n5 分钟内有效，请勿告诉他人。\r\n如果不是您本人操作，请忽略本邮件。", action, code)
+	brand := "鸟托邦 Wiki"
+	footer := "把群友的故事，留在这里。"
+	if siteURL != "" {
+		text += "\r\n\r\n鸟托邦 Wiki：" + siteURL
+		link := html.EscapeString(siteURL)
+		brand = `<a href="` + link + `" style="color:#c91458;text-decoration:none;">鸟托邦 Wiki</a>`
+		footer = `<a href="` + link + `" style="color:#c91458;text-decoration:underline;">打开鸟托邦 Wiki</a>`
+	}
+	body := fmt.Sprintf(`<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#ffffff;color:#303038;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',Arial,sans-serif;">
+<table role="presentation" width="100%%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%%" cellspacing="0" cellpadding="0" border="0" style="max-width:480px;text-align:left;">
+<tr><td style="padding:0 0 28px;border-bottom:2px solid #c91458;font-size:20px;line-height:28px;font-weight:700;">%s</td></tr>
+<tr><td style="padding:28px 0 16px;"><h1 style="margin:0;font-size:20px;line-height:30px;font-weight:600;">%s验证码</h1><p style="margin:8px 0 0;font-size:15px;line-height:24px;color:#71717d;">请在验证页面输入下方验证码。</p></td></tr>
+<tr><td align="center" style="padding:22px 8px;background:#fff4f8;border:1px solid #f4d5e0;border-radius:6px;"><strong style="display:block;padding-left:8px;font-family:Arial,sans-serif;font-size:40px;line-height:52px;font-weight:700;letter-spacing:8px;color:#303038;">%s</strong></td></tr>
+<tr><td style="padding:16px 0 28px;font-size:14px;line-height:24px;color:#71717d;"><p style="margin:0;"><strong style="color:#303038;font-weight:600;">5 分钟内有效</strong>，请勿告诉他人。</p><p style="margin:4px 0 0;">如果不是您本人操作，请忽略本邮件。</p></td></tr>
+<tr><td style="padding:20px 0 0;border-top:1px solid #e8e8ed;font-size:14px;line-height:24px;">%s</td></tr>
+</table></td></tr></table></body></html>`, brand, html.EscapeString(action), html.EscapeString(code), footer)
+	return text, body
+}
+
 func (s *SMTPSender) Send(ctx context.Context, target, code, purpose, id string) error {
 	c := s.config
-	raw, e := mailCodeMessage(c.From, target, code, purpose)
+	raw, e := mailCodeMessage(c.From, target, code, purpose, c.SiteURL)
 	if e != nil {
 		return e
 	}
