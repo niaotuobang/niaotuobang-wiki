@@ -202,6 +202,7 @@ func (a *App) login(w http.ResponseWriter, u User) error {
 }
 
 func (a *App) routes() {
+	a.route("GET /api/v1/community", "read", a.community)
 	a.route("GET /api/v1/me", "public", func(w http.ResponseWriter, r *http.Request, u *User) error {
 		a.authMu.Lock()
 		defer a.authMu.Unlock()
@@ -435,7 +436,7 @@ func prepareUser(name, login, password, role string) (User, []byte, error) {
 	return User{ID: newID(), Name: name, Login: login, Role: r, CanEdit: edit}, hash, e
 }
 func insertUser(db execer, u User, hash []byte) error {
-	_, e := db.Exec(`INSERT INTO users(id,name,login,password_hash,role,access_role,can_edit) VALUES(?,?,?,?,?,?,?)`, u.ID, u.Name, u.Login, hash, legacyRole(u), u.Role, u.CanEdit)
+	_, e := db.Exec(`INSERT INTO users(id,name,login,password_hash,role,access_role,can_edit,created_at) VALUES(?,?,?,?,?,?,?,?)`, u.ID, u.Name, u.Login, hash, legacyRole(u), u.Role, u.CanEdit, now())
 	if e != nil && strings.Contains(e.Error(), "UNIQUE") {
 		return fail(409, "ACCOUNT_EXISTS", "账号已经存在")
 	}
@@ -728,7 +729,7 @@ func (a *App) adminRoutes() {
 	})
 }
 
-var pagePath = regexp.MustCompile(`^/(|tags|tags/[A-Za-z0-9_-]+|articles/new|articles/[A-Za-z0-9_-]+(?:/edit|/history)?|timeline|search|drafts|account|admin|trash|trash/[A-Za-z0-9_-]+)$`)
+var pagePath = regexp.MustCompile(`^/(|tags|tags/[A-Za-z0-9_-]+|articles/new|articles/[A-Za-z0-9_-]+(?:/edit|/history)?|timeline|search|drafts|account|admin|community|trash|trash/[A-Za-z0-9_-]+)$`)
 
 func (a *App) static(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" && r.Method != "HEAD" {

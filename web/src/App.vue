@@ -143,6 +143,7 @@ onUnmounted(() => {
         <nav aria-label="内容导航">
           <RouterLink to="/" class="primary-nav"><Icon name="book" />最近更新</RouterLink
           ><RouterLink to="/timeline" class="primary-nav"><Icon name="clock" />时间线</RouterLink
+          ><RouterLink to="/community" class="primary-nav"><Icon name="user" />用户墙</RouterLink
           ><button class="primary-nav" @click="random"><Icon name="shuffle" />随便看看</button>
           <div class="nav-section-title">常用标签</div>
           <RouterLink

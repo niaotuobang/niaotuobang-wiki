@@ -6538,6 +6538,45 @@
           }
         }
       }
+    },
+    "/community": {
+      "get": {
+        "summary": "用户墙",
+        "description": "登录后可见的启用成员，不含迁移缺失作者占位。最近参与已发布未删除文章时间倒序，修改也计入；相同时按注册时间倒序。文章数按参与过的不同文章去重。仅返回昵称、头像引用、文章数和稳定 ID。",
+        "responses": {
+          "200": {
+            "description": "成员列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CommunityMember"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7081,6 +7120,30 @@
             "type": "boolean"
           }
         }
+      },
+      "CommunityMember": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "article_count"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "avatar_media_id": {
+            "type": "string"
+          },
+          "article_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
       }
     }
   },

@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/search', component: () => import('./pages/ArticleList.vue') },
     { path: '/timeline', component: () => import('./pages/ArticleList.vue') },
     { path: '/tags', component: () => import('./pages/Tags.vue') },
+    { path: '/community', component: () => import('./pages/Community.vue') },
     { path: '/articles/new', component: () => import('./pages/Editor.vue') },
     { path: '/articles/:id/edit', component: () => import('./pages/Editor.vue') },
     { path: '/articles/:id/history', component: () => import('./pages/History.vue') },

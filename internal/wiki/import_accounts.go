@@ -139,6 +139,9 @@ func (a *App) ImportMatterwikiAccounts(input, primaryID string, apply bool) (rep
 		if _, err = tx.Exec(`INSERT INTO legacy_user_profiles(user_id,about,created_at,updated_at,email_cipher,canonical_user_id) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO NOTHING`, id, old.About, old.CreatedAt, old.UpdatedAt, cipher[id], owner); err != nil {
 			return report, err
 		}
+		if _, err = tx.Exec(`UPDATE users SET created_at=? WHERE id=?`, old.CreatedAt, id); err != nil {
+			return report, err
+		}
 		if id != owner {
 			continue
 		}
