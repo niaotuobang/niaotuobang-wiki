@@ -157,7 +157,10 @@ svg {
   padding-left: 5px;
 }
 .brand-mark {
-  color: var(--accent);
+  display: block;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
 }
 .header-search {
   display: flex;
@@ -1714,8 +1717,8 @@ mark {
     font-size: 26px;
   }
   .brand-mark {
-    width: 32px;
-    height: 35px;
+    width: 36px;
+    height: 36px;
   }
   .header-nav {
     gap: 18px;
@@ -1780,8 +1783,8 @@ mark {
     grid-area: 1 / 1;
   }
   .brand-mark {
-    width: 29px;
-    height: 31px;
+    width: 32px;
+    height: 32px;
   }
   .header-nav {
     margin-left: auto;

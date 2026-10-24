@@ -12,6 +12,7 @@ import {
   session,
 } from './api'
 import Icon from './components/Icon.vue'
+import brandMark from './assets/brand.svg'
 const route = useRoute(),
   router = useRouter(),
   search = ref(''),
@@ -83,10 +84,8 @@ onUnmounted(() => {
   <div class="site-shell" :class="{ 'article-screen': articlePage, 'guest-screen': !session.user }">
     <header class="site-header">
       <RouterLink class="brand" to="/" aria-label="鸟托邦 Wiki 首页"
-        ><svg class="brand-mark" width="40" height="42" viewBox="0 0 40 42" aria-hidden="true">
-          <path fill="currentColor" d="M0 0h25v33H0zM28 0h4v33h-4zM35 0h5v33h-5zM0 36h40v6H0z" />
-          <path fill="white" d="M21 4h2v25h-2z" /></svg
-        ><span>鸟托邦<span class="brand-wiki">Wiki</span></span></RouterLink
+        ><img class="brand-mark" :src="brandMark" width="42" height="42" alt="" />
+        <span>鸟托邦<span class="brand-wiki">Wiki</span></span></RouterLink
       >
       <form v-if="session.user" class="header-search" role="search" @submit.prevent="submitSearch">
         <input
