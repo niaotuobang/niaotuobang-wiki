@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api, message, refreshTags, session } from '../api'
+import { useRouter } from 'vue-router'
+import { api, clearPrivateState, message, refreshSession, refreshTags, session } from '../api'
+const router = useRouter()
+async function loginAgain() {
+  try {
+    await api('/auth/logout', { method: 'POST', body: {} })
+    clearPrivateState()
+    await refreshSession()
+    await router.push('/account')
+  } catch (e) {
+    error.value = message(e)
+  }
+}
+
 const data = ref<{
     counts: Record<string, number>
     trash: { id: string; title: string; deleted_at: string }[]
@@ -97,6 +110,8 @@ interface Member {
   role: string
   disabled: boolean
   can_edit: boolean
+  savedRole: string
+  savedCanEdit: boolean
 }
 const members = ref<Member[]>([]),
   memberCursor = ref('')
@@ -105,7 +120,12 @@ async function loadMembers(next = false) {
     const page = await api(
       '/admin/members' + (next ? '?cursor=' + encodeURIComponent(memberCursor.value) : ''),
     )
-    members.value = next ? [...members.value, ...page.items] : page.items
+    const items = page.items.map((m: Member) => ({
+      ...m,
+      savedRole: m.role,
+      savedCanEdit: m.can_edit,
+    }))
+    members.value = next ? [...members.value, ...items] : items
     memberCursor.value = page.next_cursor
   } catch (e) {
     error.value = message(e)
@@ -117,10 +137,30 @@ async function saveMember(member: Member) {
       method: 'PATCH',
       body: { role: member.role, disabled: member.disabled, can_edit: member.can_edit },
     })
+    member.savedRole = member.role
+    member.savedCanEdit = member.can_edit
     notice.value = '成员权限已更新'
   } catch (e) {
     error.value = message(e)
     await loadMembers()
+  }
+}
+const changingMember = ref('')
+async function toggleDisabled(member: Member) {
+  changingMember.value = member.id
+  try {
+    await api('/admin/members/' + member.id, {
+      method: 'PATCH',
+      body: { role: member.savedRole, can_edit: member.savedCanEdit, disabled: !member.disabled },
+    })
+    notice.value = member.disabled
+      ? '已解除禁用，成员可用新的邮箱验证码登录。'
+      : '已禁用，所有登录和未使用验证码已失效。'
+    await loadMembers()
+  } catch (e) {
+    error.value = message(e)
+  } finally {
+    changingMember.value = ''
   }
 }
 onMounted(() => {
@@ -167,7 +207,8 @@ function inviteState(value: string) {
     <section class="settings-section">
       <h2>阅读范围</h2>
       <p>只有已登录的成员可以查看文章、搜索与媒体。</p>
-      <RouterLink to="/account">敏感操作前，前往我的账号重新验证</RouterLink>
+      <p class="muted">权限变更和备份需要最近五分钟内的邮箱验证码登录。</p>
+      <button class="text-link" @click="loginAgain">重新登录确认身份</button>
     </section>
     <section class="settings-section">
       <h2>邀请一个群友</h2>
@@ -235,11 +276,13 @@ function inviteState(value: string) {
     </section>
     <section class="settings-section">
       <h2>空间成员</h2>
-      <p class="muted">停用后会立即退出这个成员的会话，署名和文章仍会保留。</p>
+      <p class="muted">
+        禁用后无法登录，已有登录立即失效；解除禁用后需要重新获取验证码。文章和署名保留。
+      </p>
       <div v-for="member in members" :key="member.id" class="member-row">
         <div>
           <strong>{{ member.name }}</strong
-          ><small>{{ member.login }}</small>
+          ><small>{{ member.disabled ? '已禁用' : '正常' }}</small>
         </div>
         <select v-model="member.role" :aria-label="member.name + '的角色'">
           <option value="user">普通用户</option>
@@ -248,14 +291,19 @@ function inviteState(value: string) {
             系统管理员
           </option></select
         ><label class="checkbox-label"
-          ><input v-model="member.disabled" type="checkbox" />停用</label
-        ><label class="checkbox-label"
           ><input
             v-model="member.can_edit"
             type="checkbox"
             :disabled="member.role !== 'user'"
           />可编辑</label
-        ><button class="quiet-button" @click="saveMember(member)">保存</button>
+        ><button class="quiet-button" @click="saveMember(member)">保存</button
+        ><button
+          class="text-link"
+          :disabled="changingMember !== ''"
+          @click="toggleDisabled(member)"
+        >
+          {{ member.disabled ? '解除禁用' : '禁用' }}
+        </button>
       </div>
       <button v-if="memberCursor" class="text-link" @click="loadMembers(true)">查看更多成员</button>
     </section>

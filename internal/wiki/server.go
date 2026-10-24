@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -37,14 +36,10 @@ type App struct {
 	uploadMu   sync.Mutex
 	authMu     sync.Mutex
 	setupToken string
-	attempts   map[string]attempt
 	oss        *OSSStorage
 	auth       *authService
 }
-type attempt struct {
-	Count int
-	Since time.Time
-}
+
 type endpoint func(http.ResponseWriter, *http.Request, *User) error
 
 func Open(cfg Config) (*App, error) {
@@ -55,7 +50,7 @@ func Open(cfg Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{store: s, cfg: cfg, mux: http.NewServeMux(), attempts: map[string]attempt{}}
+	a := &App{store: s, cfg: cfg, mux: http.NewServeMux()}
 	if cfg.OSS != nil {
 		a.oss, err = newOSS(*cfg.OSS)
 		if err != nil {
@@ -237,60 +232,9 @@ func (a *App) routes() {
 		return a.login(w, u)
 	})
 	a.route("POST /api/v1/auth/login", "public", func(w http.ResponseWriter, r *http.Request, _ *User) error {
-		a.authMu.Lock()
-		defer a.authMu.Unlock()
-		key := a.clientIP(r)
-		at := a.attempts[key]
-		if time.Since(at.Since) > 15*time.Minute {
-			at = attempt{Since: time.Now()}
-		}
-		if at.Count >= 20 {
-			return fail(429, "RATE_LIMITED", "尝试过于频繁，请稍后重试")
-		}
-		at.Count++
-		if len(a.attempts) > 1000 {
-			clear(a.attempts)
-		}
-		a.attempts[key] = at
-		var b struct {
-			Login    string `json:"login"`
-			Password string `json:"password"`
-		}
-		if e := decode(w, r, &b); e != nil {
-			return e
-		}
-		var u User
-		var hash []byte
-		err := a.store.DB.QueryRow(`SELECT id,name,login,access_role,can_edit,password_hash FROM users WHERE login=? AND disabled=0`, strings.ToLower(strings.TrimSpace(b.Login))).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &hash)
-		if err != nil || bcrypt.CompareHashAndPassword(hash, []byte(b.Password)) != nil {
-			return fail(401, "UNAUTHENTICATED", "账号或密码不正确")
-		}
-		delete(a.attempts, key)
-		return a.login(w, u)
+		return fail(410, "EMAIL_CODE_REQUIRED", "请使用邮箱验证码登录")
 	})
-	a.route("POST /api/v1/auth/setup", "public", func(w http.ResponseWriter, r *http.Request, _ *User) error {
-		a.authMu.Lock()
-		defer a.authMu.Unlock()
-		var b struct {
-			Token    string `json:"token"`
-			Name     string `json:"name"`
-			Login    string `json:"login"`
-			Password string `json:"password"`
-		}
-		if e := decode(w, r, &b); e != nil {
-			return e
-		}
-		if a.setupToken == "" || subtle.ConstantTimeCompare([]byte(a.setupToken), []byte(b.Token)) != 1 {
-			return fail(403, "FORBIDDEN", "初始化凭证无效")
-		}
-		u, e := a.createUser(b.Name, b.Login, b.Password, "system_admin")
-		if e != nil {
-			return e
-		}
-		a.setupToken = ""
-		os.Remove(filepath.Join(a.store.DataDir, "setup-token"))
-		return a.login(w, u)
-	})
+	a.route("POST /api/v1/auth/setup", "public", a.setupWithEmail)
 	a.route("POST /api/v1/auth/logout", "read", func(w http.ResponseWriter, r *http.Request, _ *User) error {
 		_, token := a.session(r)
 		if _, e := a.store.DB.Exec(`DELETE FROM sessions WHERE token_hash=?`, hashToken(token)); e != nil {

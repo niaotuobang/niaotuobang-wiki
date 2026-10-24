@@ -136,123 +136,15 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Session"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "需要登录",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "无操作权限或 CSRF 校验失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "不存在或不可读",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "版本冲突或资源状态冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "超出大小限制",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "恢复版本包含已删除标签",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "配额或频率限制",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "login": {
-                    "type": "string"
-                  },
-                  "password": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "login",
-                  "password"
-                ]
-              }
-            }
+          "410": {
+            "description": "Password authentication is disabled; use email verification."
           }
         },
         "operationId": "post_auth_login",
         "tags": [
           "auth"
-        ]
+        ],
+        "deprecated": true
       }
     },
     "/auth/setup": {
@@ -376,18 +268,18 @@
                   "name": {
                     "type": "string"
                   },
-                  "login": {
+                  "challenge_id": {
                     "type": "string"
                   },
-                  "password": {
+                  "code": {
                     "type": "string"
                   }
                 },
                 "required": [
                   "token",
                   "name",
-                  "login",
-                  "password"
+                  "challenge_id",
+                  "code"
                 ]
               }
             }
@@ -5178,7 +5070,8 @@
                       "bind",
                       "replace",
                       "reauth",
-                      "recover"
+                      "recover",
+                      "setup"
                     ]
                   },
                   "target": {
@@ -5186,6 +5079,10 @@
                   },
                   "invite": {
                     "type": "string"
+                  },
+                  "setup_token": {
+                    "type": "string",
+                    "description": "One-time server setup token; required for setup purpose"
                   }
                 }
               }
@@ -5646,12 +5543,12 @@
                   "code": {
                     "type": "string",
                     "pattern": "^[0-9]{6}$"
-                  },
-                  "password": {
-                    "type": "string",
-                    "writeOnly": true
                   }
-                }
+                },
+                "required": [
+                  "challenge_id",
+                  "code"
+                ]
               }
             }
           }
@@ -5674,48 +5571,11 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "处理完成（发送受理不代表送达）",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求或验证码无效"
-          },
-          "401": {
-            "description": "需要登录"
-          },
-          "403": {
-            "description": "权限不足或需要重新验证"
-          },
-          "429": {
-            "description": "达到发送或验证限额"
+          "410": {
+            "description": "Password authentication is disabled; use email verification."
           }
         },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "password"
-                ],
-                "properties": {
-                  "password": {
-                    "type": "string",
-                    "writeOnly": true
-                  }
-                }
-              }
-            }
-          }
-        }
+        "deprecated": true
       }
     },
     "/account/sessions": {

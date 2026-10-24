@@ -2,8 +2,10 @@ package wiki
 
 import (
 	"database/sql"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
@@ -99,14 +101,29 @@ func TestIdentityBackupRestoresOnlyWithSeparateKey(t *testing.T) {
 	}
 }
 func TestLocalSystemAdministratorRecoveryRevokesSessions(t *testing.T) {
-	a, c := newTestApp(t)
+	a, c, s := identityTestApp(t)
 	u := c.call("GET", "/api/v1/me", nil, 200)["user"].(map[string]any)
-	file := filepath.Join(t.TempDir(), "password")
-	os.WriteFile(file, []byte("new-local-test-password"), 0600)
-	if e := a.RecoverSystemAdmin(u["id"].(string), file); e != nil {
+	path, e := a.PrepareEmailRecovery(u["id"].(string), t.TempDir())
+	if e != nil {
 		t.Fatal(e)
 	}
+	raw, e := os.ReadFile(path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	link, e := url.Parse(strings.TrimSpace(string(raw)))
+	if e != nil {
+		t.Fatal(e)
+	}
+	token := link.Query().Get("invite")
 	c.call("GET", "/api/v1/articles", nil, 401)
-	c.call("POST", "/api/v1/auth/login", map[string]string{"login": "admin", "password": "only-for-local-tests"}, 401)
-	c.call("POST", "/api/v1/auth/login", map[string]string{"login": "admin", "password": "new-local-test-password"}, 200)
+	c.call("POST", "/api/v1/auth/login", map[string]string{"login": "admin", "password": "only-for-local-tests"}, 410)
+	guest := &testClient{t: t, app: a}
+	v := guest.call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "join", "target": "recovered@example.com", "invite": token}, 202)
+	guest.call("POST", "/api/v1/auth/join", map[string]string{"challenge_id": v["challenge_id"].(string), "code": s.last().code, "invite": token, "nickname": "恢复管理员"}, 200)
+	recovered := guest.call("GET", "/api/v1/me", nil, 200)["user"].(map[string]any)
+	if recovered["id"] != u["id"] || recovered["role"] != "system_admin" {
+		t.Fatal("recovery changed owner identity")
+	}
+	(&testClient{t: t, app: a}).call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "join", "target": "second@example.com", "invite": token}, 403)
 }

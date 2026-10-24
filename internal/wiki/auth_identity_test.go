@@ -31,12 +31,7 @@ func (s *captureSender) last() capturedCode {
 func identityTestApp(t *testing.T) (*App, *testClient, *captureSender) {
 	t.Helper()
 	a, c := newTestApp(t)
-	key := make([]byte, 32)
-	rand.Read(key)
-	s := &captureSender{}
-	if e := a.initAuth(AuthConfig{Secret: key, Phone: s, Email: s}); e != nil {
-		t.Fatal(e)
-	}
+	s := a.auth.cfg.Email.(*captureSender)
 	return a, c, s
 }
 func TestIdentityBindingPurposeSessionAndEncryption(t *testing.T) {
@@ -99,13 +94,17 @@ func TestCodeAttemptsInviteAndRateLimits(t *testing.T) {
 }
 func TestRolesReauthAndUnknownIdentity(t *testing.T) {
 	a, system, s := identityTestApp(t)
+	su := system.call("GET", "/api/v1/me", nil, 200)["user"].(map[string]any)
+	cipher, _ := a.auth.encrypt("email", "owner@example.com")
+	a.store.DB.Exec(`INSERT INTO user_identities(id,user_id,kind,address_cipher,lookup_hash,verified_at) VALUES(?,?,?,?,?,?)`, newID(), su["id"], "email", cipher, a.auth.digest("identity-index", "email", "owner@example.com"), now())
 	admin := newUserClient(t, a, "admin")
 	member := newUserClient(t, a, "editor")
 	uid := member.call("GET", "/api/v1/me", nil, 200)["user"].(map[string]any)["id"].(string)
 	admin.call("PATCH", "/api/v1/admin/members/"+uid, map[string]any{"role": "system_admin", "disabled": false}, 403)
 	admin.call("GET", "/api/v1/admin/backup", nil, 403)
 	system.call("PATCH", "/api/v1/admin/members/"+uid, map[string]any{"role": "admin", "disabled": false}, 403)
-	system.call("POST", "/api/v1/account/reauth", map[string]string{"password": "only-for-local-tests"}, 200)
+	v := system.call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "reauth"}, 202)
+	system.call("POST", "/api/v1/account/reauth", map[string]string{"challenge_id": v["challenge_id"].(string), "code": s.last().code}, 200)
 	system.call("PATCH", "/api/v1/admin/members/"+uid, map[string]any{"role": "admin", "disabled": false}, 200)
 	member.call("GET", "/api/v1/articles", nil, 401)
 	before := len(s.messages)

@@ -67,7 +67,7 @@ func mailCodeMessage(from, to, code, purpose string) ([]byte, error) {
 	if strings.ContainsAny(from+to+code, "\r\n") {
 		return nil, fmt.Errorf("invalid verification message")
 	}
-	names := map[string]string{"login": "登录", "join": "加入 Wiki", "bind": "绑定联系方式", "replace": "更换联系方式", "reauth": "身份验证", "recover": "账号找回"}
+	names := map[string]string{"setup": "初始化", "login": "登录", "join": "加入 Wiki", "bind": "绑定联系方式", "replace": "更换联系方式", "reauth": "身份验证", "recover": "账号找回"}
 	action := names[purpose]
 	if action == "" {
 		return nil, fmt.Errorf("invalid verification purpose")

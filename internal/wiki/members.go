@@ -52,8 +52,8 @@ func (a *App) memberRoutes() {
 		id := r.PathValue("id")
 		var old string
 		var disabled bool
-		var hashLen int
-		e := a.store.DB.QueryRow(`SELECT access_role,disabled,length(password_hash) FROM users WHERE id=?`, id).Scan(&old, &disabled, &hashLen)
+		var emailCount int
+		e := a.store.DB.QueryRow(`SELECT access_role,disabled,(SELECT count(*) FROM user_identities i WHERE i.user_id=users.id AND i.kind='email') FROM users WHERE id=?`, id).Scan(&old, &disabled, &emailCount)
 		if e == sql.ErrNoRows {
 			return fail(404, "NOT_FOUND", "成员不存在")
 		}
@@ -65,15 +65,15 @@ func (a *App) memberRoutes() {
 		}
 		if old == "system_admin" && !disabled && (role != "system_admin" || b.Disabled) {
 			var count int
-			if e = a.store.DB.QueryRow(`SELECT count(*) FROM users WHERE access_role='system_admin' AND disabled=0 AND (length(password_hash)>0 OR (? AND id='demo-editor'))`, a.cfg.Demo).Scan(&count); e != nil {
+			if e = a.store.DB.QueryRow(`SELECT count(*) FROM users WHERE access_role='system_admin' AND disabled=0 AND id<>? AND ((SELECT count(*) FROM user_identities i WHERE i.user_id=users.id AND i.kind='email')>0 OR (? AND id='demo-editor'))`, id, a.cfg.Demo).Scan(&count); e != nil {
 				return e
 			}
-			if count <= 1 {
+			if count == 0 {
 				return fail(409, "LAST_ADMIN", "请至少保留一位可登录的系统管理员")
 			}
 		}
-		if role == "system_admin" && hashLen == 0 && !(a.cfg.Demo && id == "demo-editor") {
-			return fail(400, "PASSWORD_REQUIRED", "系统管理员必须先设置可用密码")
+		if role == "system_admin" && !b.Disabled && emailCount == 0 && !(a.cfg.Demo && id == "demo-editor") {
+			return fail(400, "EMAIL_REQUIRED", "系统管理员必须先验证邮箱")
 		}
 		if role != "user" || old != "user" {
 			if e = a.requireReauth(r, actor); e != nil {
@@ -98,10 +98,10 @@ func (a *App) memberRoutes() {
 		}
 		if old == "system_admin" && !disabled && (role != "system_admin" || b.Disabled) {
 			var count int
-			if e = tx.QueryRow(`SELECT count(*) FROM users WHERE access_role='system_admin' AND disabled=0 AND (length(password_hash)>0 OR (? AND id='demo-editor'))`, a.cfg.Demo).Scan(&count); e != nil {
+			if e = tx.QueryRow(`SELECT count(*) FROM users WHERE access_role='system_admin' AND disabled=0 AND id<>? AND ((SELECT count(*) FROM user_identities i WHERE i.user_id=users.id AND i.kind='email')>0 OR (? AND id='demo-editor'))`, id, a.cfg.Demo).Scan(&count); e != nil {
 				return e
 			}
-			if count <= 1 {
+			if count == 0 {
 				return fail(409, "LAST_ADMIN", "请至少保留一位可登录的系统管理员")
 			}
 		}
@@ -112,7 +112,14 @@ func (a *App) memberRoutes() {
 		if e = revokeCredentials(tx, id); e != nil {
 			return e
 		}
-		if e = audit(tx, actor.ID, "member.update", id); e != nil {
+		event := "member.update"
+		if b.Disabled != disabled {
+			event = "member.enable"
+			if b.Disabled {
+				event = "member.disable"
+			}
+		}
+		if e = audit(tx, actor.ID, event, id); e != nil {
 			return e
 		}
 		if e = tx.Commit(); e != nil {
@@ -133,11 +140,11 @@ func (a *App) PromoteSystemAdmin(id string) error {
 	var role string
 	var length int
 	var disabled bool
-	if e = tx.QueryRow(`SELECT access_role,length(password_hash),disabled FROM users WHERE id=?`, id).Scan(&role, &length, &disabled); e != nil {
+	if e = tx.QueryRow(`SELECT access_role,(SELECT count(*) FROM user_identities i WHERE i.user_id=users.id AND i.kind='email'),disabled FROM users WHERE id=?`, id).Scan(&role, &length, &disabled); e != nil {
 		return fail(400, "VALIDATION_ERROR", "指定的升级账号不存在")
 	}
-	if role != "admin" || length == 0 || disabled {
-		return fail(400, "VALIDATION_ERROR", "升级账号必须是具有密码的有效管理员")
+	if role != "admin" || disabled {
+		return fail(400, "VALIDATION_ERROR", "升级账号必须是有效管理员")
 	}
 	var count int
 	if e = tx.QueryRow(`SELECT count(*) FROM users WHERE access_role='system_admin'`).Scan(&count); e != nil {
@@ -159,10 +166,10 @@ func (a *App) PromoteSystemAdmin(id string) error {
 }
 func (a *App) RequireSystemAdmin() error {
 	var n, count int
-	if e := a.store.DB.QueryRow(`SELECT count(*) FROM users WHERE length(password_hash)>0`).Scan(&n); e != nil {
+	if e := a.store.DB.QueryRow(`SELECT count(*) FROM users`).Scan(&n); e != nil {
 		return e
 	}
-	if e := a.store.DB.QueryRow(`SELECT count(*) FROM users WHERE access_role='system_admin' AND disabled=0 AND length(password_hash)>0`).Scan(&count); e != nil {
+	if e := a.store.DB.QueryRow(`SELECT count(*) FROM users WHERE access_role='system_admin' AND disabled=0`).Scan(&count); e != nil {
 		return e
 	}
 	if n > 0 && count == 0 && !a.cfg.Demo {

@@ -19,8 +19,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 // CodeSender delivers only verification messages; it must never log target or code.
@@ -194,7 +192,7 @@ func maskedIdentity(kind, target string) string {
 }
 func (a *App) authReady() error {
 	if a.auth == nil {
-		return fail(503, "AUTH_NOT_CONFIGURED", "验证码服务尚未配置，请使用已有密码登录")
+		return fail(503, "AUTH_NOT_CONFIGURED", "邮箱验证码服务尚未配置，请联系管理员")
 	}
 	return nil
 }
@@ -322,6 +320,14 @@ func (a *App) makeSession(db execer, u User) (string, error) {
 	_, e := db.Exec(`INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)`, hashToken(token), u.ID, time.Now().UTC().Add(a.sessionAge()).Format(time.RFC3339Nano), now())
 	return token, e
 }
+func (a *App) makeVerifiedSession(db execer, u User) (string, error) {
+	token, e := a.makeSession(db, u)
+	if e != nil {
+		return "", e
+	}
+	_, e = db.Exec(`UPDATE sessions SET reauthenticated_at=? WHERE token_hash=?`, now(), hashToken(token))
+	return token, e
+}
 func (a *App) sessionResponse(w http.ResponseWriter, u User, token string) {
 	http.SetCookie(w, &http.Cookie{Name: "wiki_session", Value: token, Path: "/", HttpOnly: true, Secure: strings.HasPrefix(a.cfg.BaseURL, "https://"), SameSite: http.SameSiteLaxMode, MaxAge: int(a.sessionAge().Seconds())})
 	writeJSON(w, 200, map[string]any{"user": u, "csrf_token": csrfToken(token)})
@@ -331,13 +337,25 @@ func (a *App) issueChallenge(w http.ResponseWriter, r *http.Request, u *User) er
 		return e
 	}
 	var b struct {
-		Channel string `json:"channel"`
-		Purpose string `json:"purpose"`
-		Target  string `json:"target"`
-		Invite  string `json:"invite"`
+		Channel    string `json:"channel"`
+		Purpose    string `json:"purpose"`
+		Target     string `json:"target"`
+		Invite     string `json:"invite"`
+		SetupToken string `json:"setup_token"`
 	}
 	if e := decode(w, r, &b); e != nil {
 		return e
+	}
+	if b.Purpose == "reauth" && b.Channel == "email" && b.Target == "" && u != nil {
+		var encrypted []byte
+		if err := a.store.DB.QueryRow(`SELECT address_cipher FROM user_identities WHERE user_id=? AND kind='email'`, u.ID).Scan(&encrypted); err != nil {
+			return fail(400, "EMAIL_REQUIRED", "请先绑定邮箱")
+		}
+		var err error
+		b.Target, err = a.auth.decrypt("email", encrypted)
+		if err != nil {
+			return err
+		}
 	}
 	target, e := normalizeIdentity(b.Channel, b.Target)
 	if e != nil {
@@ -351,7 +369,7 @@ func (a *App) issueChallenge(w http.ResponseWriter, r *http.Request, u *User) er
 		return fail(503, "CHANNEL_UNAVAILABLE", "此验证渠道暂不可用，请使用其他登录方式")
 	}
 	switch b.Purpose {
-	case "login", "join", "recover":
+	case "login", "join", "recover", "setup":
 	case "bind", "replace", "reauth":
 		if u == nil {
 			return fail(401, "UNAUTHENTICATED", "请先登录")
@@ -392,6 +410,12 @@ func (a *App) issueChallenge(w http.ResponseWriter, r *http.Request, u *User) er
 	finish := func(err error) error { tx.Rollback(); a.authMu.Unlock(); return err }
 	uid := ""
 	send := true
+	if b.Purpose == "setup" {
+		if b.Channel != "email" || a.setupToken == "" || subtle.ConstantTimeCompare([]byte(a.setupToken), []byte(b.SetupToken)) != 1 {
+			return finish(fail(403, "FORBIDDEN", "初始化凭证无效"))
+		}
+		b.Invite = b.SetupToken
+	}
 	if b.Purpose == "join" {
 		var role string
 		if e = tx.QueryRow(`SELECT role FROM invites WHERE token_hash=? AND expires_at>? AND revoked_at='' AND consumed_at=''`, hashToken(b.Invite), now()).Scan(&role); e != nil {
@@ -404,11 +428,15 @@ func (a *App) issueChallenge(w http.ResponseWriter, r *http.Request, u *User) er
 		if e != nil && e != sql.ErrNoRows {
 			return finish(e)
 		}
-		if e == sql.ErrNoRows || b.Purpose == "recover" && role == "system_admin" || b.Purpose == "reauth" && (u == nil || uid != u.ID || u.Role == "system_admin") {
+		if e == sql.ErrNoRows || b.Purpose == "reauth" && (u == nil || uid != u.ID) {
 			send = false
 		}
 		if e == sql.ErrNoRows && b.Purpose == "login" && b.Channel == "email" && a.auth.registrationEmails[lookup] {
-			send = true
+			var existing int
+			if e = tx.QueryRow(`SELECT count(*) FROM user_identities WHERE kind='email' AND lookup_hash=?`, lookup).Scan(&existing); e != nil {
+				return finish(e)
+			}
+			send = existing == 0
 		}
 	} else if u != nil {
 		uid = u.ID
@@ -493,7 +521,7 @@ func (a *App) identityRoutes() {
 			phone = a.auth.cfg.Phone != nil
 			email = a.auth.cfg.Email != nil
 		}
-		writeJSON(w, 200, map[string]any{"phone": phone, "email": email, "password": true, "registration": "invite_only"})
+		writeJSON(w, 200, map[string]any{"phone": phone, "email": email, "password": false, "registration": "invite_only"})
 		return nil
 	})
 	a.route("POST /api/v1/auth/challenges", "public", a.issueChallenge)
@@ -551,7 +579,7 @@ func (a *App) identityRoutes() {
 						return e
 					}
 				}
-				token, e = a.makeSession(tx, u)
+				token, e = a.makeVerifiedSession(tx, u)
 				if e != nil {
 					return e
 				}
@@ -583,13 +611,30 @@ func (a *App) identityRoutes() {
 			if c.InviteHash != hashToken(b.Invite) {
 				return fail(403, "INVALID_INVITE", "邀请无效")
 			}
-			var role string
-			if e := tx.QueryRow(`SELECT role FROM invites WHERE token_hash=? AND expires_at>? AND revoked_at='' AND consumed_at=''`, c.InviteHash, now()).Scan(&role); e != nil {
+			var role, recoveryUser string
+			if e := tx.QueryRow(`SELECT role,recovery_user_id FROM invites WHERE token_hash=? AND expires_at>? AND revoked_at='' AND consumed_at=''`, c.InviteHash, now()).Scan(&role, &recoveryUser); e != nil {
 				return fail(403, "INVALID_INVITE", "邀请无效或已使用")
 			}
-			u = User{ID: newID(), Name: name, Login: "member-" + newID(), Role: "user", CanEdit: role != "viewer"}
-			if e := insertUser(tx, u, []byte{}); e != nil {
-				return e
+			if recoveryUser != "" {
+				var e error
+				u, e = userByID(tx, recoveryUser)
+				if e != nil || u.Role != "system_admin" {
+					return fail(403, "FORBIDDEN", "恢复链接不可用")
+				}
+				if _, e = tx.Exec(`DELETE FROM sessions WHERE user_id=?`, u.ID); e != nil {
+					return e
+				}
+				if _, e = tx.Exec(`DELETE FROM user_identities WHERE user_id=? AND kind='email'`, u.ID); e != nil {
+					return e
+				}
+				if e = audit(tx, u.ID, "system.email_recovery", u.ID); e != nil {
+					return e
+				}
+			} else {
+				u = User{ID: newID(), Name: name, Login: "member-" + newID(), Role: "user", CanEdit: role != "viewer"}
+				if e := insertUser(tx, u, []byte{}); e != nil {
+					return e
+				}
 			}
 			if e := insertIdentity(tx, u.ID, c); e != nil {
 				return e
@@ -598,7 +643,7 @@ func (a *App) identityRoutes() {
 				return e
 			}
 			var e error
-			token, e = a.makeSession(tx, u)
+			token, e = a.makeVerifiedSession(tx, u)
 			if e != nil {
 				return e
 			}
@@ -711,50 +756,20 @@ func (a *App) reauthenticate(w http.ResponseWriter, r *http.Request, u *User) er
 	if e := decode(w, r, &b); e != nil {
 		return e
 	}
-	_, token := a.session(r)
 	if b.Password != "" {
-		a.authMu.Lock()
-		defer a.authMu.Unlock()
-		tx, e := a.store.DB.Begin()
-		if e != nil {
+		return fail(410, "EMAIL_CODE_REQUIRED", "请使用邮箱验证码验证身份")
+	}
+	_, token := a.session(r)
+	if e := a.withChallenge(r, b.codeProof, "reauth", func(tx *sql.Tx, c challenge) error {
+		if c.UserID != u.ID || c.Kind != "email" {
+			return fail(403, "FORBIDDEN", "验证未通过")
+		}
+		if _, e := tx.Exec(`UPDATE sessions SET reauthenticated_at=? WHERE token_hash=?`, now(), hashToken(token)); e != nil {
 			return e
 		}
-		defer tx.Rollback()
-		if e = reserveRate(tx, "password-reauth:"+u.ID, time.Minute, 5); e != nil {
-			return e
-		}
-		var hash []byte
-		if e = tx.QueryRow(`SELECT password_hash FROM users WHERE id=? AND disabled=0`, u.ID).Scan(&hash); e != nil {
-			return e
-		}
-		if bcrypt.CompareHashAndPassword(hash, []byte(b.Password)) != nil {
-			if e = tx.Commit(); e != nil {
-				return e
-			}
-			return fail(403, "INVALID_CREDENTIAL", "验证未通过")
-		}
-		if _, e = tx.Exec(`UPDATE sessions SET reauthenticated_at=? WHERE token_hash=?`, now(), hashToken(token)); e != nil {
-			return e
-		}
-		if e = audit(tx, u.ID, "auth.reauth", u.ID); e != nil {
-			return e
-		}
-		if e = tx.Commit(); e != nil {
-			return e
-		}
-	} else {
-		if u.Role == "system_admin" {
-			return fail(403, "PASSWORD_REQUIRED", "系统管理员请使用密码重新验证")
-		}
-		if e := a.withChallenge(r, b.codeProof, "reauth", func(tx *sql.Tx, c challenge) error {
-			if c.UserID != u.ID {
-				return fail(403, "FORBIDDEN", "验证未通过")
-			}
-			_, e := tx.Exec(`UPDATE sessions SET reauthenticated_at=? WHERE token_hash=?`, now(), hashToken(token))
-			return e
-		}); e != nil {
-			return e
-		}
+		return audit(tx, u.ID, "auth.reauth", u.ID)
+	}); e != nil {
+		return e
 	}
 	writeJSON(w, 200, map[string]bool{"ok": true})
 	return nil
@@ -770,14 +785,11 @@ func (a *App) removeIdentity(w http.ResponseWriter, r *http.Request, u *User) er
 		return e
 	}
 	defer tx.Rollback()
-	var count, hashLen int
+	var count int
 	if e = tx.QueryRow(`SELECT count(*) FROM user_identities WHERE user_id=?`, u.ID).Scan(&count); e != nil {
 		return e
 	}
-	if e = tx.QueryRow(`SELECT length(password_hash) FROM users WHERE id=?`, u.ID).Scan(&hashLen); e != nil {
-		return e
-	}
-	if count <= 1 && hashLen == 0 {
+	if count <= 1 {
 		return fail(409, "LAST_IDENTITY", "至少保留一种可用登录方式")
 	}
 	if _, e = tx.Exec(`DELETE FROM user_identities WHERE id=? AND user_id=?`, r.PathValue("id"), u.ID); e != nil {
@@ -796,41 +808,7 @@ func (a *App) removeIdentity(w http.ResponseWriter, r *http.Request, u *User) er
 	return nil
 }
 func (a *App) changePassword(w http.ResponseWriter, r *http.Request, u *User) error {
-	if e := a.requireReauth(r, u); e != nil {
-		return e
-	}
-	var b struct {
-		Password string `json:"password"`
-	}
-	if e := decode(w, r, &b); e != nil {
-		return e
-	}
-	if len(b.Password) < 10 || len(b.Password) > 72 {
-		return fail(400, "VALIDATION_ERROR", "密码需要 10 至 72 字节")
-	}
-	hash, e := bcrypt.GenerateFromPassword([]byte(b.Password), bcrypt.DefaultCost)
-	if e != nil {
-		return e
-	}
-	tx, e := a.store.DB.Begin()
-	if e != nil {
-		return e
-	}
-	defer tx.Rollback()
-	if _, e = tx.Exec(`UPDATE users SET password_hash=? WHERE id=?`, hash, u.ID); e != nil {
-		return e
-	}
-	if e = revokeCredentials(tx, u.ID); e != nil {
-		return e
-	}
-	if e = audit(tx, u.ID, "password.change", u.ID); e != nil {
-		return e
-	}
-	if e = tx.Commit(); e != nil {
-		return e
-	}
-	writeJSON(w, 200, map[string]bool{"ok": true})
-	return nil
+	return fail(410, "EMAIL_CODE_REQUIRED", "当前账号仅使用邮箱验证码，无需设置密码")
 }
 func (a *App) listSessions(w http.ResponseWriter, r *http.Request, u *User) error {
 	_, t := a.session(r)

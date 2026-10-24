@@ -2,6 +2,7 @@ package wiki
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"image"
 	"image/color"
@@ -57,17 +58,37 @@ func newTestApp(t *testing.T) (*App, *testClient) {
 	}
 	t.Cleanup(func() { a.Close() })
 	c := &testClient{t: t, app: a}
-	c.call("POST", "/api/v1/auth/setup", map[string]any{"token": a.setupToken, "name": "测试管理员", "login": "admin", "password": "only-for-local-tests"}, 200)
+	key := make([]byte, 32)
+	rand.Read(key)
+	sender := &captureSender{}
+	if e := a.initAuth(AuthConfig{Secret: key, Email: sender, Phone: sender}); e != nil {
+		t.Fatal(e)
+	}
+	u, e := a.createUser("测试管理员", "admin", "only-for-local-tests", "system_admin")
+	if e != nil {
+		t.Fatal(e)
+	}
+	a.setupToken = ""
+	w := httptest.NewRecorder()
+	if e = a.login(w, u); e != nil {
+		t.Fatal(e)
+	}
+	c.cookie = w.Result().Cookies()[0]
 	return a, c
 }
 func newUserClient(t *testing.T, a *App, role string) *testClient {
 	t.Helper()
 	login := newID()
-	if _, e := a.createUser("群友", login, "test-password-123", role); e != nil {
+	u, e := a.createUser("群友", login, "test-password-123", role)
+	if e != nil {
 		t.Fatal(e)
 	}
 	c := &testClient{t: t, app: a}
-	c.call("POST", "/api/v1/auth/login", map[string]string{"login": login, "password": "test-password-123"}, 200)
+	w := httptest.NewRecorder()
+	if e = a.login(w, u); e != nil {
+		t.Fatal(e)
+	}
+	c.cookie = w.Result().Cookies()[0]
 	return c
 }
 func publishBody(title string) map[string]any {
@@ -95,7 +116,7 @@ func TestPermissionsAndCSRF(t *testing.T) {
 	if w.Code != 403 {
 		t.Fatal("cross-origin login accepted")
 	}
-	admin.call("POST", "/api/v1/auth/setup", map[string]string{"token": "bad", "name": "other", "login": "other", "password": "test-password"}, 403)
+	admin.call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "setup", "target": "other@example.com", "setup_token": "bad"}, 403)
 	editor.call("POST", "/api/v1/admin/invites", map[string]string{"role": "editor"}, 403)
 	invite := admin.call("POST", "/api/v1/admin/invites", map[string]string{"role": "editor"}, 201)
 	member := &testClient{t: t, app: a}

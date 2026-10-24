@@ -49,7 +49,6 @@ func run() error {
 	}
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.String("env-file", path, "explicit private environment file")
-	passwordFile := flags.String("password-file", "", "owner-only file for local system administrator recovery")
 	userID := flags.String("user-id", "", "existing user ID for explicit local recovery or promotion")
 	dir := flags.String("data-dir", env("DATA_DIR", "./data"), "persistent data directory")
 	listen := flags.String("listen", env("LISTEN_ADDR", "127.0.0.1:8080"), "listen address")
@@ -106,7 +105,11 @@ func run() error {
 	defer app.Close()
 	switch command {
 	case "recover-system-admin":
-		return app.RecoverSystemAdmin(*userID, *passwordFile)
+		p, e := app.PrepareEmailRecovery(*userID, *output)
+		if e == nil {
+			fmt.Println(p)
+		}
+		return e
 	case "promote-system-admin":
 		return app.PromoteSystemAdmin(*userID)
 	case "import-matterwiki":
