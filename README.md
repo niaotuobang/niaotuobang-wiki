@@ -9,6 +9,7 @@
 - [运行、媒体、备份和旧站迁移](docs/operations.md)
 - [实现与验证记录](docs/implementation-status.md)
 - [OpenAPI 契约](api/openapi.yaml)
+- [可复用的欢迎邮件模板](templates/email/README.md)
 
 ## 本地体验
 
@@ -27,7 +28,7 @@ make build
 ./bin/wiki serve --env-file /etc/wiki/wiki.env
 ```
 
-第一次启动会在数据目录生成权限为 `0600` 的 `setup-token`。在网页上用这份一次性凭证创建管理员，再邀请群友加入。网站必须登录后阅读，不提供匿名阅读开关。非演示服务先按 [配置模板](config/wiki.env.example) 配齐两个验证渠道与身份密钥。
+第一次启动会在数据目录生成权限为 `0600` 的 `setup-token`。在网页上用这份一次性凭证创建管理员，再邀请群友加入。网站必须登录后阅读，不提供匿名阅读开关。非演示服务先按 [配置模板](config/wiki.env.example) 配齐 SMTP 邮箱验证码和身份密钥。
 
 编译后的 `bin/wiki` 已嵌入网页。部署时只需对应平台的程序、可写持久目录和环境配置。正式 HTTPS 入口需要设置 `BASE_URL`，如通用示例 `https://wiki.example.com`，以正确启用安全 Cookie。
 
@@ -44,7 +45,7 @@ make test
 make check
 ```
 
-Vue 页面包括首页、Tag 列表、文章、富文本编辑器、版本历史、时间线、搜索、个人草稿和成员管理。编辑器独立按需加载，阅读页不加载它。图片、视频均通过媒体 ID 引用，支持本地流式上传及 OSS 签名直传。
+Vue 页面包括首页、Tag 列表、文章、富文本编辑器、版本历史、时间线、搜索、个人草稿、用户墙和成员管理；账号页支持修改昵称及上传方形头像。编辑器独立按需加载，阅读页不加载它。图片、视频均通过媒体 ID 引用，支持本地流式上传及 OSS 签名直传。
 
 ## 容器
 
