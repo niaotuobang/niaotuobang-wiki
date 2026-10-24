@@ -254,7 +254,14 @@ func (a *App) routes() {
 	})
 	a.route("GET /api/v1/articles/random", "read", func(w http.ResponseWriter, r *http.Request, _ *User) error {
 		var id string
-		if e := a.store.DB.QueryRow(`SELECT id FROM articles WHERE status='published' AND deleted_at='' ORDER BY random() LIMIT 1`).Scan(&id); e != nil {
+		exclude := r.URL.Query().Get("exclude")
+		if e := a.store.DB.QueryRow(`SELECT id FROM articles WHERE status='published' AND deleted_at='' AND id<>? ORDER BY random() LIMIT 1`, exclude).Scan(&id); e != nil {
+			if e != sql.ErrNoRows {
+				return e
+			}
+			if exclude != "" {
+				return fail(404, "NOT_FOUND", "暂时没有其他文章了")
+			}
 			return fail(404, "NOT_FOUND", "还没有可阅读的文章")
 		}
 		writeJSON(w, 200, map[string]string{"id": id})

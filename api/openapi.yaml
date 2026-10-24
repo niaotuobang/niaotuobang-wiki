@@ -925,7 +925,17 @@
             "bearerAuth": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "exclude",
+            "required": false,
+            "description": "排除当前文章 ID，避免随机回到同一篇；无其他可读文章时返回 404。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "成功",

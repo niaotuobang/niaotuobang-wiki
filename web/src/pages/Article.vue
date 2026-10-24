@@ -14,7 +14,24 @@ const route = useRoute(),
   loading = ref(true),
   backlinkCursor = ref(''),
   deleting = ref(false),
-  busy = ref(false)
+  busy = ref(false),
+  randomBusy = ref(false),
+  randomError = ref('')
+async function random() {
+  if (!article.value || randomBusy.value) return
+  randomBusy.value = true
+  randomError.value = ''
+  try {
+    const next = await api<{ id: string }>(
+      '/articles/random?exclude=' + encodeURIComponent(article.value.id),
+    )
+    await router.push('/articles/' + next.id)
+  } catch (e) {
+    randomError.value = message(e)
+  } finally {
+    randomBusy.value = false
+  }
+}
 async function load() {
   loading.value = true
   error.value = ''
@@ -72,8 +89,14 @@ onMounted(load)
     <button class="button" @click="load">重试</button
     ><RouterLink class="text-link" to="/">返回首页</RouterLink>
   </div>
-  <template v-else-if="article"
-    ><RouterLink to="/" class="back-link"><Icon name="back" :size="16" />回到 Wiki</RouterLink>
+  <template v-else-if="article">
+    <nav class="article-reading-nav" aria-label="文章浏览">
+      <RouterLink to="/" class="back-link"><Icon name="back" :size="16" />回到 Wiki</RouterLink>
+      <button type="button" class="back-link random-link" :disabled="randomBusy" @click="random">
+        <Icon name="shuffle" :size="16" />{{ randomBusy ? '正在找下一篇…' : '随机看看' }}
+      </button>
+    </nav>
+    <p v-if="randomError" class="notice" role="status">{{ randomError }}</p>
     <div class="article-layout">
       <article class="article-main">
         <header class="article-heading">
@@ -157,3 +180,31 @@ onMounted(load)
     </div></template
   >
 </template>
+
+<style scoped>
+.article-reading-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 28px;
+}
+.article-reading-nav .back-link {
+  min-height: 32px;
+  margin: 0;
+}
+.random-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.random-link:disabled {
+  cursor: wait;
+}
+@media (max-width: 600px) {
+  .article-reading-nav {
+    margin-bottom: 24px;
+  }
+}
+</style>
