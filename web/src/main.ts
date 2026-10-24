@@ -51,4 +51,5 @@ router.beforeEach((to) => {
   if (session.ready && !session.user && !session.public_read && to.path !== '/account')
     return { path: '/account' }
 })
-createApp(App).use(router).mount('#app')
+const app = createApp(App).use(router)
+router.isReady().then(() => app.mount('#app'))

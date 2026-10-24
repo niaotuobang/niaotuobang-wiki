@@ -324,3 +324,7 @@ Go 增加显式 `--env-file /etc/wiki/wiki.env`，优先级为进程环境变量
 用户明确只需要短信验证码，希望费用低。比较普通短信与 PNVS 后，最终确定个人项目使用 PNVS 平台短信按量发送，不购买套餐，不接入一键登录／本机号码核验，不保留第二套发送实现。短信每天默认上限为 20 次，增加 `AUTH_SMS_MONTHLY_LIMIT=100`，按 UTC 自然月计数，限额按受理尝试计算以防超时重试造成费用绕过。
 
 公开价格核查时，小用量普通验证码短信为 0.045 元/条，PNVS 短信认证 API 为 0.06 元/次；100 次分别约 4.50 元及 6 元，实际以供应商当期价格和账户账单为准。只使用 PNVS 短信验证码发送接口，不能因为产品归属名为号码认证就默认使用其他认证能力。[普通短信价格](https://help.aliyun.com/zh/sms/product-overview/notice-on-price-adjustment-for-domestic-sms-services-2604)、[PNVS 计费](https://help.aliyun.com/zh/pnvs/product-overview/product-pricing/)
+
+## 邀请入口修订
+
+注册仅由管理员生成的一次性链接进入，不展示“使用邀请加入”按钮或手填凭证框。创建时允许添加 200 字以内备注，管理员列表显示创建与消费记录；成功注册在事务中消费邀请，不能多人复用。数据库迁移 006 为旧邀请保留默认空备注与创建时间，不编造历史数据。

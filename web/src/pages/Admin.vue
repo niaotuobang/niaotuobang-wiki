@@ -10,9 +10,22 @@ const data = ref<{
   error = ref(''),
   invite = ref(''),
   role = ref('editor'),
+  inviteNote = ref(''),
   saving = ref(false),
   notice = ref('')
-const invitations = ref<{ id: string; role: string; state: string; expires_at: string }[]>([]),
+const invitations = ref<
+    {
+      id: string
+      role: string
+      state: string
+      expires_at: string
+      note: string
+      created_at: string
+      created_by_name: string
+      consumed_at: string
+      consumed_by_name: string
+    }[]
+  >([]),
   inviteCursor = ref(''),
   authStatus = ref<{ phone_configured: boolean; email_configured: boolean; storage: string }>(),
   audit = ref<{ id: string; event: string; result: string; created_at: string }[]>([])
@@ -26,6 +39,7 @@ async function loadInvites(next = false) {
 async function revokeInvite(id: string) {
   try {
     await api('/admin/invites/' + id, { method: 'DELETE' })
+    invite.value = ''
     await loadInvites()
     notice.value = '邀请已撤销'
   } catch (e) {
@@ -63,8 +77,12 @@ async function restore(id: string) {
 async function makeInvite() {
   saving.value = true
   try {
-    const result = await api('/admin/invites', { method: 'POST', body: { role: role.value } })
+    const result = await api('/admin/invites', {
+      method: 'POST',
+      body: { role: role.value, note: inviteNote.value },
+    })
     invite.value = window.location.origin + '/account?invite=' + encodeURIComponent(result.invite)
+    inviteNote.value = ''
     await loadInvites()
   } catch (e) {
     error.value = message(e)
@@ -153,12 +171,20 @@ function inviteState(value: string) {
     </section>
     <section class="settings-section">
       <h2>邀请一个群友</h2>
-      <p class="muted">邀请一次有效，七天内可以使用。</p>
+      <p class="muted">每条链接仅限一人加入，七天内有效。备注只供管理员查看。</p>
+      <label class="invite-note" for="invite-note">创建备注（可选）</label>
+      <input
+        id="invite-note"
+        v-model="inviteNote"
+        class="invite-note-input"
+        maxlength="200"
+        placeholder="例如：邀请周末聚会认识的群友"
+      />
       <div class="inline-form">
         <select v-model="role" aria-label="邀请成员的角色">
           <option value="editor">编辑者：可以补充文章</option>
           <option value="viewer">阅读者：只能阅读</option></select
-        ><button class="button" :disabled="saving" @click="makeInvite">生成邀请</button>
+        ><button class="button" :disabled="saving" @click="makeInvite">生成一次性邀请链接</button>
       </div>
       <label v-if="invite" class="invite-result"
         >把这个链接交给群友<input
@@ -171,9 +197,23 @@ function inviteState(value: string) {
     <section class="settings-section">
       <h2>邀请记录</h2>
       <div v-for="item in invitations" :key="item.id" class="member-row">
-        <span
-          >{{ inviteState(item.state) }} · {{ item.role === 'viewer' ? '只读' : '普通成员' }}</span
-        ><button v-if="item.state === 'active'" class="text-link" @click="revokeInvite(item.id)">
+        <div>
+          <strong>{{ item.note || '未填写备注' }}</strong>
+          <small
+            >{{ inviteState(item.state) }} ·
+            {{ item.role === 'viewer' ? '只读' : '普通成员' }}</small
+          >
+          <small
+            >{{ item.created_by_name || '管理员' }} 创建<span v-if="item.created_at"
+              >于 {{ new Date(item.created_at).toLocaleString('zh-CN') }}</span
+            ></small
+          >
+          <small v-if="item.consumed_at"
+            >{{ item.consumed_by_name || '成员' }} 于
+            {{ new Date(item.consumed_at).toLocaleString('zh-CN') }} 加入</small
+          >
+        </div>
+        <button v-if="item.state === 'active'" class="text-link" @click="revokeInvite(item.id)">
           撤销邀请
         </button>
       </div>
@@ -182,9 +222,9 @@ function inviteState(value: string) {
     <section v-if="authStatus" class="settings-section">
       <h2>验证渠道</h2>
       <p>
-        邮箱：{{
-          authStatus.email_configured ? '已配置' : '未配置'
-        }}；媒体：{{ authStatus.storage }}
+        邮箱：{{ authStatus.email_configured ? '已配置' : '未配置' }}；媒体：{{
+          authStatus.storage
+        }}
       </p>
       <p class="muted">配置完整不等于实际投递成功。真实验证码还需要收件人确认。</p>
       <h2>最近安全记录</h2>

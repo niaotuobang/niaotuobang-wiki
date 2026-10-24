@@ -143,6 +143,7 @@ svg {
   gap: 12px;
   margin-right: auto;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .brand > span {
   font-size: 31px;
@@ -162,7 +163,8 @@ svg {
   display: flex;
   width: 255px;
   height: 37px;
-  flex-shrink: 0;
+  min-width: 120px;
+  flex-shrink: 1;
 }
 .header-search input {
   border-radius: 0;
@@ -187,6 +189,12 @@ svg {
   font-size: 14px;
   color: #696973;
   white-space: nowrap;
+  min-width: 0;
+}
+.header-nav > a:last-child {
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .header-nav a:hover,
 .header-nav .router-link-exact-active {
@@ -220,6 +228,9 @@ svg {
   align-items: start;
 }
 .workspace.reading-layout {
+  display: block;
+}
+.workspace.single-column {
   display: block;
 }
 .workspace main {
@@ -1456,8 +1467,9 @@ mark {
   margin-top: 10px;
 }
 .auth-page {
-  max-width: 370px;
-  margin: 10px auto 50px;
+  width: 100%;
+  max-width: 460px;
+  margin: clamp(24px, 5vh, 64px) auto 50px;
 }
 .auth-page h1 {
   font-size: 28px;
@@ -1475,6 +1487,7 @@ mark {
   font-size: 12px;
 }
 .account-page {
+  width: 100%;
   max-width: 620px;
 }
 .account-page form {
@@ -1493,13 +1506,27 @@ mark {
   margin-top: 16px;
 }
 .auth-channel {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
   margin: 20px 0;
 }
 .auth-channel button {
   min-height: 44px;
   flex: 1;
   white-space: nowrap;
+}
+.verification-code {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.verification-code button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+.account-details dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .account-details {
   margin: 35px 0;
@@ -1657,9 +1684,11 @@ mark {
     padding: 0 22px;
   }
   .site-header {
-    height: 88px;
-    gap: 15px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: 44px 44px;
+    gap: 12px;
+    padding: 18px 0 14px;
     position: relative;
   }
   .brand > span {
@@ -1667,6 +1696,7 @@ mark {
   }
   .brand {
     gap: 9px;
+    grid-area: 1 / 1;
   }
   .brand-mark {
     width: 29px;
@@ -1675,23 +1705,24 @@ mark {
   .header-nav {
     margin-left: auto;
     gap: 17px;
+    grid-area: 1 / 2;
   }
   .header-nav > a:first-child:not(.write-link) {
     display: none;
   }
   .header-search {
-    order: 4;
+    grid-area: 2 / 1 / 3 / 4;
     width: 100%;
-    margin-bottom: 14px;
+    margin: 0;
     height: 36px;
   }
   .site-header {
     height: 132px;
-    align-content: center;
   }
   .mobile-menu {
     display: inline-flex !important;
     margin-right: -8px;
+    grid-area: 1 / 3;
   }
   .header-search input {
     font-size: 12px;
@@ -2087,8 +2118,7 @@ mark {
     white-space: nowrap;
   }
   .auth-page {
-    margin: 12px auto 35px;
-    max-width: 370px;
+    margin: 20px auto 35px;
   }
   .auth-page h1 {
     font-size: 26px;
@@ -2125,6 +2155,33 @@ mark {
   }
   .site-footer span:last-child {
     font-size: 9px;
+  }
+}
+.guest-screen .site-header {
+  display: flex;
+  height: 100px;
+  padding: 0;
+  flex-wrap: nowrap;
+}
+@media (max-width: 380px) {
+  .header-nav .write-link {
+    display: none;
+  }
+}
+.guest-screen .header-nav > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+@media (max-width: 760px) {
+  .guest-screen .site-header {
+    height: 88px;
+  }
+  .auth-page input,
+  .account-page input,
+  .account-page select {
+    font-size: 16px;
+    min-height: 44px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2175,6 +2232,7 @@ mark {
 }
 .member-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   padding: 16px 0;
@@ -2189,6 +2247,7 @@ mark {
   font-size: 13px;
   display: block;
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 .member-row small {
   font-size: 10px;
@@ -2295,4 +2354,16 @@ mark {
   .article-screen .site-header {
     height: 112px;
   }
+}
+
+.invite-note {
+  display: block;
+  margin: 18px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.invite-note-input {
+  display: block;
+  width: 100%;
+  margin-bottom: 14px;
 }

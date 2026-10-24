@@ -215,8 +215,9 @@ async function removeIdentity(id: string) {
     notice.value = '绑定已解除，请重新登录'
   })
 }
-function toggleJoin() {
-  joining.value = !joining.value
+function leaveInvite() {
+  invite.value = ''
+  joining.value = false
   recover.value = false
   channel.value = 'email'
 }
@@ -320,9 +321,7 @@ function toggleRecover() {
         ><input id="setup-name" v-model="form.name" required maxlength="40"
       /></template>
       <template v-if="mode === 'join' && !session.user"
-        ><label for="invite">邀请凭证</label
-        ><input id="invite" v-model="invite" required autocomplete="off" /><label for="nickname"
-          >昵称</label
+        ><label for="nickname">昵称</label
         ><input id="nickname" v-model="form.name" required maxlength="40"
       /></template>
       <template v-if="mode === 'setup' || channel === 'password'"
@@ -347,7 +346,7 @@ function toggleRecover() {
           autocomplete="email"
           required
         /><label for="code">验证码</label>
-        <div class="inline-form">
+        <div class="inline-form verification-code">
           <input
             id="code"
             v-model="form.code"
@@ -409,8 +408,9 @@ function toggleRecover() {
       ><button class="quiet-button logout-button" @click="logout">退出登录</button></template
     >
     <template v-else-if="mode !== 'setup'"
-      ><button class="text-link auth-switch" @click="toggleJoin">
-        {{ joining ? '已有账号，去登录' : '使用邀请加入' }}</button
+      ><p v-if="!joining" class="field-hint">还没有账号？请向管理员索取一次性邀请链接。</p>
+      <button v-if="joining" class="text-link auth-switch" @click="leaveInvite">
+        已有账号，去登录</button
       ><button v-if="!joining" class="text-link auth-switch" @click="toggleRecover">
         {{ recover ? '返回登录' : '找回账号' }}
       </button></template

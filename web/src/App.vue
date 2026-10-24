@@ -55,7 +55,7 @@ async function initialise() {
       await refreshSession()
     }
     if (session.user) await refreshTags()
-    else await router.replace('/account')
+    else if (route.path !== '/account') await router.replace('/account')
   } catch (e) {
     error.value = message(e)
   }
@@ -64,7 +64,7 @@ async function recheck() {
   if (document.visibilityState === 'visible') {
     try {
       await refreshSession()
-      if (!session.user) await router.replace('/account')
+      if (!session.user && route.path !== '/account') await router.replace('/account')
     } catch {}
   }
 }
@@ -80,7 +80,7 @@ onUnmounted(() => {
 </script>
 <template>
   <a class="skip-link" href="#main">跳到正文</a>
-  <div class="site-shell" :class="{ 'article-screen': articlePage }">
+  <div class="site-shell" :class="{ 'article-screen': articlePage, 'guest-screen': !session.user }">
     <header class="site-header">
       <RouterLink class="brand" to="/" aria-label="鸟托邦 Wiki 首页"
         ><svg class="brand-mark" width="40" height="42" viewBox="0 0 40 42" aria-hidden="true">
@@ -104,6 +104,7 @@ onUnmounted(() => {
         ><RouterLink to="/account">{{ session.user?.name || '登录' }}</RouterLink>
       </nav>
       <button
+        v-if="session.user"
         class="mobile-menu icon-button"
         aria-label="展开导航"
         :aria-expanded="menu"
@@ -121,7 +122,10 @@ onUnmounted(() => {
         <Icon name="close" :size="16" />
       </button>
     </div>
-    <div class="workspace" :class="{ 'reading-layout': articlePage, 'menu-open': menu }">
+    <div
+      class="workspace"
+      :class="{ 'reading-layout': articlePage, 'single-column': !session.user, 'menu-open': menu }"
+    >
       <aside
         v-if="session.user && (!articlePage || menu)"
         class="sidebar"
@@ -147,6 +151,9 @@ onUnmounted(() => {
             ><Icon name="edit" :size="18" />我的草稿</RouterLink
           >
           <div class="mobile-account-links">
+            <RouterLink v-if="editable()" to="/articles/new" class="primary-nav"
+              ><Icon name="plus" :size="18" />写文章</RouterLink
+            >
             <RouterLink to="/account" class="primary-nav"
               ><Icon name="user" :size="18" />{{ session.user?.name || '登录 Wiki' }}</RouterLink
             ><RouterLink v-if="administrative()" to="/admin" class="primary-nav"

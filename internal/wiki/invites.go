@@ -2,13 +2,16 @@ package wiki
 
 import (
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 func (a *App) inviteRoutes() {
 	a.route("POST /api/v1/admin/invites", "admin", func(w http.ResponseWriter, r *http.Request, u *User) error {
 		var b struct {
 			Role string `json:"role"`
+			Note string `json:"note"`
 		}
 		if e := decode(w, r, &b); e != nil {
 			return e
@@ -16,13 +19,17 @@ func (a *App) inviteRoutes() {
 		if b.Role != "viewer" && b.Role != "editor" && b.Role != "user" {
 			return fail(400, "VALIDATION_ERROR", "邀请只能创建普通成员，可选只读")
 		}
+		b.Note = strings.TrimSpace(b.Note)
+		if utf8.RuneCountInString(b.Note) > 200 {
+			return fail(400, "VALIDATION_ERROR", "邀请备注最多 200 字")
+		}
 		token := newID()
 		tx, e := a.store.DB.Begin()
 		if e != nil {
 			return e
 		}
 		defer tx.Rollback()
-		if _, e = tx.Exec(`INSERT INTO invites(token_hash,role,expires_at,created_by) VALUES(?,?,?,?)`, hashToken(token), b.Role, time.Now().UTC().Add(7*24*time.Hour).Format(time.RFC3339Nano), u.ID); e != nil {
+		if _, e = tx.Exec(`INSERT INTO invites(token_hash,role,expires_at,created_by,note,created_at) VALUES(?,?,?,?,?,?)`, hashToken(token), b.Role, time.Now().UTC().Add(7*24*time.Hour).Format(time.RFC3339Nano), u.ID, b.Note, now()); e != nil {
 			return e
 		}
 		if e = audit(tx, u.ID, "invite.create", hashToken(token)); e != nil {
@@ -36,15 +43,15 @@ func (a *App) inviteRoutes() {
 	})
 	a.route("GET /api/v1/admin/invites", "admin", func(w http.ResponseWriter, r *http.Request, u *User) error {
 		cursor := r.URL.Query().Get("cursor")
-		rows, e := a.store.DB.Query(`SELECT token_hash,role,expires_at,created_by,revoked_at,consumed_at FROM invites WHERE (?='' OR token_hash>?) ORDER BY token_hash LIMIT 21`, cursor, cursor)
+		rows, e := a.store.DB.Query(`SELECT i.token_hash,i.role,i.expires_at,i.created_by,i.revoked_at,i.consumed_at,i.consumed_by,i.note,i.created_at,COALESCE(c.name,''),COALESCE(m.name,'') FROM invites i LEFT JOIN users c ON c.id=i.created_by LEFT JOIN users m ON m.id=i.consumed_by WHERE (?='' OR i.token_hash>?) ORDER BY i.token_hash LIMIT 21`, cursor, cursor)
 		if e != nil {
 			return e
 		}
 		defer rows.Close()
 		items := []map[string]string{}
 		for rows.Next() {
-			var id, role, expiry, creator, revoked, consumed string
-			if e = rows.Scan(&id, &role, &expiry, &creator, &revoked, &consumed); e != nil {
+			var id, role, expiry, creator, revoked, consumed, consumer, note, created, creatorName, consumerName string
+			if e = rows.Scan(&id, &role, &expiry, &creator, &revoked, &consumed, &consumer, &note, &created, &creatorName, &consumerName); e != nil {
 				return e
 			}
 			state := "active"
@@ -55,7 +62,7 @@ func (a *App) inviteRoutes() {
 			} else if expiry < now() {
 				state = "expired"
 			}
-			items = append(items, map[string]string{"id": id, "role": role, "expires_at": expiry, "created_by": creator, "state": state})
+			items = append(items, map[string]string{"id": id, "role": role, "expires_at": expiry, "created_by": creator, "created_by_name": creatorName, "created_at": created, "consumed_by": consumer, "consumed_by_name": consumerName, "consumed_at": consumed, "note": note, "state": state})
 		}
 		if e = rows.Err(); e != nil {
 			return e

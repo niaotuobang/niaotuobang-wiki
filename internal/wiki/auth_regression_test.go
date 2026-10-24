@@ -174,3 +174,21 @@ func TestDisabledPhoneRejectsSendingAndOutstandingCodes(t *testing.T) {
 		t.Fatal("disabled channel invoked sender")
 	}
 }
+
+func TestInviteNotesAndMemberHistory(t *testing.T) {
+	a, admin, sender := identityTestApp(t)
+	admin.call("POST", "/api/v1/admin/invites", map[string]string{"role": "user", "note": strings.Repeat("字", 201)}, 400)
+	token := admin.call("POST", "/api/v1/admin/invites", map[string]string{"role": "user", "note": " 周末聚会 "}, 201)["invite"].(string)
+	guest := &testClient{t: t, app: a}
+	proof := guest.call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "join", "target": "invited@example.com", "invite": token}, 202)
+	guest.call("POST", "/api/v1/auth/join", map[string]string{"challenge_id": proof["challenge_id"].(string), "code": sender.last().code, "invite": token, "nickname": "受邀群友"}, 200)
+	item := admin.call("GET", "/api/v1/admin/invites", nil, 200)["items"].([]any)[0].(map[string]any)
+	if item["note"] != "周末聚会" || item["state"] != "consumed" || item["consumed_by_name"] != "受邀群友" || item["created_by_name"] != "测试管理员" || item["created_at"] == "" || item["consumed_at"] == "" {
+		t.Fatalf("incomplete invitation history: %v", item)
+	}
+	b, _ := json.Marshal(item)
+	if strings.Contains(string(b), token) {
+		t.Fatal("invite token leaked in history")
+	}
+	(&testClient{t: t, app: a}).call("POST", "/api/v1/auth/challenges", map[string]string{"channel": "email", "purpose": "join", "target": "second@example.com", "invite": token}, 403)
+}

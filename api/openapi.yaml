@@ -4493,7 +4493,7 @@
     },
     "/admin/invites": {
       "post": {
-        "summary": "生成七天内一次有效的邀请",
+        "summary": "生成一次性邀请链接的凭证并保存创建备注",
         "description": "权限：admin",
         "security": [
           {
@@ -4627,6 +4627,11 @@
                       "editor",
                       "viewer"
                     ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "仅管理员可见的创建备注，可选"
                   }
                 },
                 "required": [
@@ -4643,7 +4648,7 @@
       },
       "get": {
         "operationId": "getAdminInvites",
-        "summary": "分页查看脱敏邀请状态",
+        "summary": "分页查看邀请状态、备注、创建人与使用记录",
         "tags": [
           "Accounts"
         ],
