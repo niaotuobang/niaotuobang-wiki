@@ -6,6 +6,7 @@ import type { Article, ArticleWrite, DocNode, Media, Page } from '../types'
 import RichEditor from '../components/RichEditor.vue'
 import DocumentView from '../components/DocumentView.vue'
 import Icon from '../components/Icon.vue'
+import ModalFrame from '../components/ModalFrame.vue'
 const route = useRoute(),
   router = useRouter(),
   id = ref(String(route.params.id || '')),
@@ -547,8 +548,8 @@ onBeforeUnmount(() => {
       </p>
     </div></template
   >
-  <div v-if="linkOpen" class="modal-shade" @click.self="linkOpen = false">
-    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="link-title">
+  <ModalFrame v-if="linkOpen" labelledby="link-title" @close="linkOpen = false">
+    <section class="dialog">
       <div class="dialog-heading">
         <h2 id="link-title">链接到另一个故事</h2>
         <button class="icon-button" aria-label="关闭链接窗口" @click="linkOpen = false">
@@ -582,5 +583,5 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </section>
-  </div>
+  </ModalFrame>
 </template>

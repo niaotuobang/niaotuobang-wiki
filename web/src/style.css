@@ -967,6 +967,13 @@ mark {
 .modal-shade {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: inherit;
   background: #27233066;
   z-index: 70;
   display: flex;
@@ -974,6 +981,9 @@ mark {
   justify-content: center;
   padding: 24px;
   overflow-y: auto;
+}
+.modal-shade::backdrop {
+  background: transparent;
 }
 .dialog {
   width: 480px;

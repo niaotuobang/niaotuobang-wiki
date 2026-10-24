@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { api, catalog, editable, message, refreshTags, session } from '../api'
 import type { Tag } from '../types'
 import Icon from '../components/Icon.vue'
+import ModalFrame from '../components/ModalFrame.vue'
 const search = ref(''),
   open = ref(false),
   editing = ref<string>(),
@@ -98,14 +99,8 @@ async function remove() {
       {{ search ? '可以换个词，或创建一个新的。' : '用人物、事件或一个群梗，为故事添加入口。' }}
     </p>
   </div>
-  <div v-if="open" class="modal-shade" @click.self="open = false">
-    <form
-      class="dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="tag-title"
-      @submit.prevent="save"
-    >
+  <ModalFrame v-if="open" labelledby="tag-title" @close="open = false">
+    <form class="dialog" @submit.prevent="save">
       <div class="dialog-heading">
         <h2 id="tag-title">{{ editing ? '编辑标签' : '新建标签' }}</h2>
         <button type="button" class="icon-button" aria-label="关闭标签编辑" @click="open = false">
@@ -162,5 +157,5 @@ async function remove() {
         ><button class="button" :disabled="busy">{{ busy ? '保存中…' : '保存标签' }}</button>
       </div>
     </form>
-  </div>
+  </ModalFrame>
 </template>
