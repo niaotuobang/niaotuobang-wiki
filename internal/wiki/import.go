@@ -31,6 +31,10 @@ func (id *legacyID) UnmarshalJSON(b []byte) error {
 	} else {
 		s = string(b)
 	}
+	if s == "" {
+		*id = ""
+		return nil
+	}
 	if !safeID.MatchString(s) {
 		return fmt.Errorf("unsupported legacy identifier")
 	}
@@ -39,6 +43,8 @@ func (id *legacyID) UnmarshalJSON(b []byte) error {
 }
 
 type legacyRevision struct {
+	ArchiveID     legacyID `json:"archive_id"`
+	TopicUnknown  bool     `json:"topic_unknown,omitempty"`
 	Title         string   `json:"title"`
 	Body          string   `json:"body"`
 	TopicID       legacyID `json:"topic_id"`
@@ -48,7 +54,10 @@ type legacyRevision struct {
 	ChangeSummary string   `json:"change_summary"`
 }
 type legacyArticle struct {
-	ID legacyID `json:"id"`
+	DeletedAt           string   `json:"deleted_at,omitempty"`
+	DeletionTimeUnknown bool     `json:"deletion_time_unknown,omitempty"`
+	CreationTimeUnknown bool     `json:"creation_time_unknown,omitempty"`
+	ID                  legacyID `json:"id"`
 	legacyRevision
 	History []legacyRevision `json:"history"`
 }
@@ -58,8 +67,12 @@ type legacyTopic struct {
 	Description string   `json:"description"`
 }
 type legacyUser struct {
-	ID   legacyID `json:"id"`
-	Name string   `json:"name"`
+	ID        legacyID `json:"id"`
+	Name      string   `json:"name"`
+	Email     string   `json:"email,omitempty"`
+	About     string   `json:"about,omitempty"`
+	CreatedAt string   `json:"created_at,omitempty"`
+	UpdatedAt string   `json:"updated_at,omitempty"`
 }
 type legacyMedia struct {
 	URL         string `json:"url"`
@@ -90,7 +103,7 @@ var legacyArticleLink = regexp.MustCompile(`#/?article/(\d+)`)
 func legacyTime(s string) (string, error) {
 	for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02T15:04:05.000Z"} {
 		if t, e := time.Parse(layout, s); e == nil {
-			return t.UTC().Format(time.RFC3339), nil
+			return t.UTC().Format(time.RFC3339Nano), nil
 		}
 	}
 	return "", fmt.Errorf("missing or invalid legacy timestamp")
@@ -114,6 +127,8 @@ func (a *App) ImportMatterwiki(input string, apply bool) (report ImportReport, e
 	report.Articles = len(bundle.Articles)
 	report.Media = len(bundle.Media)
 	prepared := map[string][]Article{}
+	provenance := map[string][]legacyRevision{}
+	sourceArticles := map[string]legacyArticle{}
 	topics := map[legacyID]Tag{}
 	users := map[legacyID]User{}
 	media := map[string]importedMedia{}
@@ -202,6 +217,13 @@ func (a *App) ImportMatterwiki(input string, apply bool) (report ImportReport, e
 			return report, fmt.Errorf("missing or duplicate article ID")
 		}
 		seen[article.ID] = true
+		if article.DeletedAt != "" {
+			deleted, e := legacyTime(article.DeletedAt)
+			if e != nil {
+				return report, e
+			}
+			article.DeletedAt = deleted
+		}
 		id := "legacy-" + string(article.ID)
 		var exists int
 		if err = a.store.DB.QueryRow(`SELECT count(*) FROM import_map WHERE source='matterwiki' AND legacy_id=?`, string(article.ID)).Scan(&exists); err != nil {
@@ -218,12 +240,16 @@ func (a *App) ImportMatterwiki(input string, apply bool) (report ImportReport, e
 		history := append([]legacyRevision{}, article.History...)
 		sort.SliceStable(history, func(i, j int) bool { return history[i].CreatedAt < history[j].CreatedAt })
 		history = append(history, article.legacyRevision)
-		originalAuthor := author(article.UserID)
+		originalAuthorID := history[0].UserID
+		if originalAuthorID == "" {
+			originalAuthorID = article.UserID
+		}
+		originalAuthor := author(originalAuthorID)
 		for index, revision := range history {
 			if revision.Title == "" {
 				revision.Title = article.Title
 			}
-			if revision.TopicID == "" {
+			if revision.TopicID == "" && !revision.TopicUnknown {
 				revision.TopicID = article.TopicID
 			}
 			if revision.UserID == "" {
@@ -258,9 +284,14 @@ func (a *App) ImportMatterwiki(input string, apply bool) (report ImportReport, e
 				}
 				tags = append(tags, tag)
 			}
-			prepared[id] = append(prepared[id], Article{ID: id, Title: revision.Title, Document: doc, SchemaVersion: 1, PlainText: plain, Tags: tags, Status: "published", Revision: index + 1, AuthorID: originalAuthor.ID, AuthorName: originalAuthor.Name, UpdatedBy: user.ID, UpdatedByName: user.Name, CreatedAt: created, UpdatedAt: updated, ChangeSummary: revision.ChangeSummary})
+			prepared[id] = append(prepared[id], Article{ID: id, Title: revision.Title, Document: doc, SchemaVersion: 1, PlainText: plain, Tags: tags, TagsUnknown: revision.TopicUnknown, Status: "published", Revision: index + 1, AuthorID: originalAuthor.ID, AuthorName: originalAuthor.Name, UpdatedBy: user.ID, UpdatedByName: user.Name, CreatedAt: created, UpdatedAt: updated, ChangeSummary: revision.ChangeSummary})
+			provenance[id] = append(provenance[id], revision)
+			if revision.ArchiveID != "" {
+				prepared[id][len(prepared[id])-1].LegacyArchivedAt = updated
+			}
 			report.Versions++
 		}
+		sourceArticles[id] = article
 	}
 	// Missing internal targets and media never become silently broken references.
 	for _, versions := range prepared {
@@ -292,7 +323,16 @@ func (a *App) ImportMatterwiki(input string, apply bool) (report ImportReport, e
 		return report, err
 	}
 	rawHash := sha256.Sum256(raw)
-	if err = os.WriteFile(filepath.Join(private, "matterwiki-"+hex.EncodeToString(rawHash[:])+".json"), raw, 0600); err != nil {
+	// Account emails belong in encrypted identities/profile metadata, never in
+	// the readable article import archive. Original input stays on the operator's disk.
+	for i := range bundle.Users {
+		bundle.Users[i].Email = ""
+	}
+	archivedRaw, e := json.MarshalIndent(bundle, "", "  ")
+	if e != nil {
+		return report, e
+	}
+	if err = os.WriteFile(filepath.Join(private, "matterwiki-"+hex.EncodeToString(rawHash[:])+".json"), archivedRaw, 0600); err != nil {
 		return report, err
 	}
 	stagedMedia, cleanup, err := a.stageImportedMedia(media)
@@ -332,8 +372,17 @@ func (a *App) ImportMatterwiki(input string, apply bool) (report ImportReport, e
 	}
 	for id, versions := range prepared {
 		current := versions[len(versions)-1]
+		source := sourceArticles[id]
 		doc, _ := json.Marshal(current.Document)
 		if _, err = tx.Exec(`INSERT INTO articles(id,title,document,plain_text,status,revision,author_id,updated_by,created_at,updated_at,change_summary) VALUES(?,?,?,?,'published',?,?,?,?,?,?)`, id, current.Title, string(doc), current.PlainText, current.Revision, current.AuthorID, current.UpdatedBy, current.CreatedAt, current.UpdatedAt, current.ChangeSummary); err != nil {
+			return report, err
+		}
+		if source.DeletedAt != "" {
+			if _, err = tx.Exec(`UPDATE articles SET deleted_at=? WHERE id=?`, source.DeletedAt, id); err != nil {
+				return report, err
+			}
+		}
+		if _, err = tx.Exec(`INSERT INTO legacy_article_metadata(article_id,deletion_time_unknown,creation_time_unknown) VALUES(?,?,?)`, id, source.DeletionTimeUnknown, source.CreationTimeUnknown); err != nil {
 			return report, err
 		}
 		for _, tag := range current.Tags {
@@ -341,10 +390,17 @@ func (a *App) ImportMatterwiki(input string, apply bool) (report ImportReport, e
 				return report, err
 			}
 		}
-		for _, v := range versions {
+		for index, v := range versions {
 			snapshot, _ := json.Marshal(v)
 			if _, err = tx.Exec(`INSERT INTO article_versions(article_id,revision,snapshot) VALUES(?,?,?)`, id, v.Revision, string(snapshot)); err != nil {
 				return report, err
+			}
+			r := provenance[id][index]
+			if r.ArchiveID != "" {
+				hash := sha256.Sum256([]byte(r.Body))
+				if _, err = tx.Exec(`INSERT INTO legacy_revision_map(legacy_archive_id,article_id,revision,original_updated_at,body_sha256) VALUES(?,?,?,?,?)`, string(r.ArchiveID), id, v.Revision, r.UpdatedAt, hex.EncodeToString(hash[:])); err != nil {
+					return report, err
+				}
 			}
 			mids, _ := references(v.Document)
 			for _, mid := range mids {

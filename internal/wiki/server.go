@@ -315,6 +315,9 @@ func (a *App) routes() {
 			if e != nil {
 				return e
 			}
+			if _, e = a.store.DB.Exec(`UPDATE legacy_article_metadata SET deletion_time_unknown=0 WHERE article_id=?`, v.ID); e != nil {
+				return e
+			}
 			writeJSON(w, 200, map[string]bool{"ok": true})
 			return nil
 		})

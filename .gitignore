@@ -51,6 +51,7 @@ next-env.d.ts
 !/internal/webui/dist/.gitkeep
 /.local-infra/
 /web/test-results/
+/tools/__pycache__/
 /.ai-cli-log/
 
 # Runtime env files may contain provider credentials.

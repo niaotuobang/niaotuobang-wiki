@@ -56,6 +56,7 @@ func run() error {
 	output := flags.String("output", "./backups", "backup output directory")
 	input := flags.String("input", "", "restore or import input file")
 	apply := flags.Bool("apply", false, "apply a validated Matterwiki import; otherwise preview")
+	primaryLegacyID := flags.String("primary-admin-id", "", "explicit legacy account ID for initial administrator migration")
 	if e := flags.Parse(args); e != nil {
 		return e
 	}
@@ -91,7 +92,7 @@ func run() error {
 	if env("STORAGE_DRIVER", "local") == "oss" {
 		cfg.OSS = &wiki.OSSConfig{Endpoint: os.Getenv("OSS_ENDPOINT"), Region: os.Getenv("OSS_REGION"), Bucket: os.Getenv("OSS_BUCKET"), AccessKeyID: os.Getenv("OSS_ACCESS_KEY_ID"), AccessKeySecret: os.Getenv("OSS_ACCESS_KEY_SECRET"), SecurityToken: os.Getenv("OSS_SECURITY_TOKEN")}
 	}
-	if command == "serve" && !cfg.Demo {
+	if (command == "serve" || command == "import-matterwiki-accounts") && !cfg.Demo {
 		var e error
 		cfg.Auth, e = loadAuthConfig()
 		if e != nil {
@@ -104,6 +105,16 @@ func run() error {
 	}
 	defer app.Close()
 	switch command {
+	case "import-matterwiki-accounts":
+		if *input == "" || *primaryLegacyID == "" {
+			return fmt.Errorf("--input and --primary-admin-id are required")
+		}
+		report, err := app.ImportMatterwikiAccounts(*input, *primaryLegacyID, *apply)
+		if err == nil {
+			b, _ := json.Marshal(report)
+			fmt.Println(string(b))
+		}
+		return err
 	case "recover-system-admin":
 		p, e := app.PrepareEmailRecovery(*userID, *output)
 		if e == nil {

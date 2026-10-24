@@ -115,6 +115,24 @@ Bucket CORS 需要允许实际网页源的 `PUT`、`GET`、`HEAD` 及 `Content-T
 
 旧 `#/article/数字` 链接由网页入口转换为新路由。要延续旧域名上的链接，还需要让旧入口提供这个过渡页面，因为 URL hash 不会发给服务器。
 
+### 从旧 SQLite 迁移账号和完整历史
+
+先用 SQLite 在线备份接口取得一致性副本，保留原库和校验值；不要直接复制正在写入的数据库文件，也不要让新程序打开旧库作为自己的数据目录。以下命令的目标目录须独立于旧站。
+
+```sh
+python3 tools/export_matterwiki_sqlite.py --input /private/legacy-snapshot.sqlite --output /private/legacy-export.json
+./bin/wiki import-matterwiki-accounts --env-file /private/new-wiki.env --input /private/legacy-export.json --primary-admin-id 1
+./bin/wiki import-matterwiki-accounts --env-file /private/new-wiki.env --input /private/legacy-export.json --primary-admin-id 1 --apply
+./bin/wiki import-matterwiki --env-file /private/new-wiki.env --input /private/legacy-export.json
+./bin/wiki import-matterwiki --env-file /private/new-wiki.env --input /private/legacy-export.json --apply
+```
+
+`--primary-admin-id` 必须显式选择原用户 ID，示例中的 `1` 不是内置默认值。账号导入先预演，再在空目标库中创建对应系统管理员及普通成员；已有不相关用户的库会拒绝导入。密码字段不导出、不导入，登录统一验证邮箱。昵称、简介及原用户时间保留；邮箱在目标库中加密，第一次实际验证码登录后才标记已验证。共享邮箱保留各旧 ID 的独立署名，并确定一个邮箱登录身份，避免把同一邮箱绑定成多个互相冲突的身份。
+
+导出器以只读方式读取旧库，为每条归档保留原归档 ID；新库用 `legacy_revision_map` 记录版本对应、原时间和原文哈希。已删除文章的剩余归档也导入回收站，不会丢弃；旧站没有保存的创建／删除时间标记为未知。归档表未记录历史分类时不推断其分类；旧站归档时间与实际修改时间分别标注。缺失的旧用户保留原 ID 和明确占位署名，不编造姓名。
+
+可读的文章导入存档会去除邮箱字段，联系方式仅存入加密身份与迁移元数据；原始 SQLite 副本、原始导出和完整核对报告需另外存放在私有备份目录，不能提交到 Git。恢复与回滚使用保留的原库及独立新库，不覆盖原站。
+
 ## 小程序与后续扩展
 
 小程序代码包以后通过微信分发；内容、账号、分页和媒体协议复用 Go。小程序需要原生正文渲染器和适合微信上传方式的客户端适配，Vue 组件不会直接运行在原生小程序中。

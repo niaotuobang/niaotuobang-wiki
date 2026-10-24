@@ -24,6 +24,8 @@ export interface Article {
   schema_version: number
   plain_text: string
   tags: Tag[]
+  tags_unknown?: boolean
+  legacy_archived_at?: string
   media_kinds: string[]
   status: string
   revision: number

@@ -595,6 +595,9 @@ func (a *App) identityRoutes() {
 				if identities != 1 {
 					return fail(400, "INVALID_CODE", "验证码无效或已过期")
 				}
+				if _, e = tx.Exec(`UPDATE user_identities SET verified_at=? WHERE user_id=? AND kind=? AND lookup_hash=? AND verified_at=''`, now(), c.UserID, c.Kind, c.Lookup); e != nil {
+					return e
+				}
 
 				if purpose == "recover" {
 					if u.Role == "system_admin" {

@@ -3,7 +3,9 @@ import { onMounted, ref } from 'vue'
 import { api, dateLabel, message } from '../api'
 import type { Page } from '../types'
 import Icon from '../components/Icon.vue'
-const items = ref<{ id: string; title: string; deleted_at: string }[]>([]),
+const items = ref<
+    { id: string; title: string; deleted_at: string; deletion_time_unknown?: boolean }[]
+  >([]),
   cursor = ref(''),
   loading = ref(false),
   error = ref('')
@@ -44,7 +46,13 @@ onMounted(() => load())
       <h2>
         <RouterLink :to="'/trash/' + item.id">{{ item.title || '未命名文章' }}</RouterLink>
       </h2>
-      <p class="muted">{{ dateLabel(item.deleted_at) }} 放入回收站</p>
+      <p class="muted">
+        {{
+          item.deletion_time_unknown
+            ? '旧站已删除，原删除时间未记录'
+            : dateLabel(item.deleted_at) + ' 放入回收站'
+        }}
+      </p>
       <RouterLink class="text-link trash-history-link" :to="'/trash/' + item.id"
         >查看正文与历史 <Icon name="arrow" :size="15"
       /></RouterLink>

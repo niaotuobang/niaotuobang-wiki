@@ -28,18 +28,19 @@ func (a *App) trashRoutes() {
 			}
 			cursorTime, cursorID = pair[0], pair[1]
 		}
-		rows, err := a.store.DB.Query(`SELECT id,title,deleted_at FROM articles WHERE deleted_at<>'' AND (status='published' OR author_id=?) AND (?='' OR deleted_at<? OR (deleted_at=? AND id<?)) ORDER BY deleted_at DESC,id DESC LIMIT 21`, u.ID, cursorTime, cursorTime, cursorTime, cursorID)
+		rows, err := a.store.DB.Query(`SELECT a.id,a.title,a.deleted_at,coalesce(l.deletion_time_unknown,0) FROM articles a LEFT JOIN legacy_article_metadata l ON l.article_id=a.id WHERE a.deleted_at<>'' AND (a.status='published' OR a.author_id=?) AND (?='' OR a.deleted_at<? OR (a.deleted_at=? AND a.id<?)) ORDER BY a.deleted_at DESC,a.id DESC LIMIT 21`, u.ID, cursorTime, cursorTime, cursorTime, cursorID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
-		items := []map[string]string{}
+		items := []map[string]any{}
 		for rows.Next() {
 			var id, title, ts string
-			if err := rows.Scan(&id, &title, &ts); err != nil {
+			var unknown bool
+			if err := rows.Scan(&id, &title, &ts, &unknown); err != nil {
 				return err
 			}
-			items = append(items, map[string]string{"id": id, "title": title, "deleted_at": ts})
+			items = append(items, map[string]any{"id": id, "title": title, "deleted_at": ts, "deletion_time_unknown": unknown})
 		}
 		if err := rows.Err(); err != nil {
 			return err
@@ -48,7 +49,7 @@ func (a *App) trashRoutes() {
 		if len(items) > 20 {
 			items = items[:20]
 			last := items[len(items)-1]
-			b, _ := json.Marshal([]string{last["deleted_at"], last["id"]})
+			b, _ := json.Marshal([]any{last["deleted_at"], last["id"]})
 			next = string(b)
 		}
 		writeJSON(w, 200, map[string]any{"items": items, "next_cursor": next})

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { diffLines } from 'diff'
 import { useRoute, useRouter } from 'vue-router'
 import { api, dateLabel, editable, message, refreshTags } from '../api'
@@ -54,7 +54,6 @@ async function loadDetails() {
     error.value = message(e)
   }
 }
-watch([chosen, base], loadDetails)
 async function more() {
   try {
     const page = await api(
@@ -84,8 +83,10 @@ const added = computed(() =>
 )
 const tagChange = computed(
   () =>
+    !previous.value?.tags_unknown &&
+    !selected.value?.tags_unknown &&
     JSON.stringify(previous.value?.tags.map((t) => t.name) || []) !==
-    JSON.stringify(selected.value?.tags.map((t) => t.name)),
+      JSON.stringify(selected.value?.tags.map((t) => t.name)),
 )
 function mediaIDs(a?: Article) {
   const ids: string[] = []
@@ -103,12 +104,13 @@ async function load() {
   error.value = ''
   try {
     current.value = await api<Article>(articleAPI.value)
-    cache.value[current.value.revision] = current.value
+    cache.value = current.value.revision === 0 ? { 0: current.value } : {}
     const page = await api(articleAPI.value + '/versions')
     versions.value = page.items
     cursor.value = page.next_cursor
     chosen.value = versions.value[0]?.revision || current.value.revision
     base.value = versions.value[1]?.revision || 0
+    await loadDetails()
   } catch (e) {
     error.value = message(e)
   }
@@ -132,6 +134,7 @@ async function restore() {
 function chooseVersion(v: Article) {
   chosen.value = v.revision
   base.value = versions.value.find((x) => x.revision < v.revision)?.revision || 0
+  loadDetails()
 }
 function openRestore() {
   confirm.value = true
@@ -225,7 +228,7 @@ onMounted(load)
           </dd>
         </div>
         <div>
-          <dt>修改时间</dt>
+          <dt>{{ selected.legacy_archived_at ? '旧站归档时间' : '修改时间' }}</dt>
           <dd>
             <time :datetime="selected.updated_at">{{ versionTime(selected.updated_at) }}</time>
           </dd>
@@ -236,7 +239,7 @@ onMounted(load)
         </div>
       </dl>
       <label class="comparison-select"
-        >与<select v-model="base">
+        >与<select v-model="base" @change="loadDetails">
           <option :value="0">空白版本</option>
           <option
             v-for="v in versions.filter((v) => v.revision !== chosen)"
@@ -248,6 +251,9 @@ onMounted(load)
         >比较</label
       >
       <div class="version-changes">
+        <p v-if="selected.tags_unknown || previous?.tags_unknown" class="muted">
+          旧站未记录历史分类，此处不推断分类变化。
+        </p>
         <p v-if="!changes" class="muted">差异较多，请展开前后版本全文核对。</p>
         <p v-if="previous && previous.title !== selected.title">
           <strong>标题：</strong>{{ previous.title }} → {{ selected.title }}

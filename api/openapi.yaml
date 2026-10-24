@@ -6301,6 +6301,9 @@
                           },
                           "deleted_at": {
                             "type": "string"
+                          },
+                          "deletion_time_unknown": {
+                            "type": "boolean"
                           }
                         }
                       }
@@ -6888,6 +6891,14 @@
           "updated_by_avatar": {
             "type": "string",
             "description": "当前头像的私有媒体 ID，未设置时省略"
+          },
+          "tags_unknown": {
+            "type": "boolean",
+            "description": "旧版归档未保存分类，不能据此推断分类变化"
+          },
+          "legacy_archived_at": {
+            "type": "string",
+            "description": "旧版归档时间，不等同于原内容修改时间"
           }
         }
       },
