@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/niaotuobang/niaotuobang-wiki/internal/runtimeconfig"
 	"github.com/niaotuobang/niaotuobang-wiki/internal/webui"
 	"github.com/niaotuobang/niaotuobang-wiki/internal/wiki"
 )
@@ -37,7 +38,19 @@ func run() error {
 		command = args[0]
 		args = args[1:]
 	}
+	path, e := runtimeconfig.EnvFileArgument(args)
+	if e != nil {
+		return e
+	}
+	if path != "" {
+		if e = runtimeconfig.LoadEnvFile(path); e != nil {
+			return e
+		}
+	}
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
+	flags.String("env-file", path, "explicit private environment file")
+	passwordFile := flags.String("password-file", "", "owner-only file for local system administrator recovery")
+	userID := flags.String("user-id", "", "existing user ID for explicit local recovery or promotion")
 	dir := flags.String("data-dir", env("DATA_DIR", "./data"), "persistent data directory")
 	listen := flags.String("listen", env("LISTEN_ADDR", "127.0.0.1:8080"), "listen address")
 	demo := flags.Bool("demo", false, "local fictional demo; loopback only")
@@ -79,12 +92,23 @@ func run() error {
 	if env("STORAGE_DRIVER", "local") == "oss" {
 		cfg.OSS = &wiki.OSSConfig{Endpoint: os.Getenv("OSS_ENDPOINT"), Region: os.Getenv("OSS_REGION"), Bucket: os.Getenv("OSS_BUCKET"), AccessKeyID: os.Getenv("OSS_ACCESS_KEY_ID"), AccessKeySecret: os.Getenv("OSS_ACCESS_KEY_SECRET"), SecurityToken: os.Getenv("OSS_SECURITY_TOKEN")}
 	}
+	if command == "serve" && !cfg.Demo {
+		var e error
+		cfg.Auth, e = loadAuthConfig()
+		if e != nil {
+			return e
+		}
+	}
 	app, e := wiki.Open(cfg)
 	if e != nil {
 		return e
 	}
 	defer app.Close()
 	switch command {
+	case "recover-system-admin":
+		return app.RecoverSystemAdmin(*userID, *passwordFile)
+	case "promote-system-admin":
+		return app.PromoteSystemAdmin(*userID)
 	case "import-matterwiki":
 		if *input == "" {
 			return fmt.Errorf("--input is required")
@@ -112,6 +136,9 @@ func run() error {
 		}
 		return e
 	case "serve":
+		if e = app.RequireSystemAdmin(); e != nil {
+			return e
+		}
 	default:
 		return fmt.Errorf("unknown command: %s", command)
 	}

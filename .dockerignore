@@ -11,3 +11,6 @@ bin
 .env*
 internal/webui/dist/assets
 internal/webui/dist/index.html
+
+*.env
+*.env.*

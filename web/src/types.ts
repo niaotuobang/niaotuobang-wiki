@@ -51,7 +51,8 @@ export interface User {
   id: string
   name: string
   login: string
-  role: 'admin' | 'editor' | 'viewer'
+  role: 'system_admin' | 'admin' | 'user'
+  can_edit: boolean
 }
 export interface Page<T> {
   items: T[]

@@ -416,95 +416,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Session"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "需要登录",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "无操作权限或 CSRF 校验失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "不存在或不可读",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "版本冲突或资源状态冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "超出大小限制",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "恢复版本包含已删除标签",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "配额或频率限制",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+          "410": {
+            "description": "请改用邀请及验证码加入"
           }
         },
         "requestBody": {
@@ -540,7 +453,8 @@
         "operationId": "post_auth_register",
         "tags": [
           "auth"
-        ]
+        ],
+        "deprecated": true
       }
     },
     "/auth/demo": {
@@ -4545,95 +4459,11 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OK"
-                }
-              }
-            }
-          },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "需要登录",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+            "description": "网站必须登录，不支持公开阅读"
           },
           "403": {
-            "description": "无操作权限或 CSRF 校验失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "不存在或不可读",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "版本冲突或资源状态冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "超出大小限制",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "恢复版本包含已删除标签",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "配额或频率限制",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+            "description": "只有系统管理员可访问"
           }
         },
         "requestBody": {
@@ -4657,7 +4487,8 @@
         "operationId": "patch_admin_settings",
         "tags": [
           "admin"
-        ]
+        ],
+        "deprecated": true
       }
     },
     "/admin/invites": {
@@ -4808,6 +4639,48 @@
         "operationId": "post_admin_invites",
         "tags": [
           "admin"
+        ]
+      },
+      "get": {
+        "operationId": "getAdminInvites",
+        "summary": "分页查看脱敏邀请状态",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ]
       }
     },
@@ -5208,6 +5081,889 @@
           "admin"
         ]
       }
+    },
+    "/auth/options": {
+      "get": {
+        "operationId": "getAuthOptions",
+        "summary": "可用登录渠道",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        }
+      }
+    },
+    "/auth/challenges": {
+      "post": {
+        "operationId": "postAuthChallenges",
+        "summary": "申请验证码",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "responses": {
+          "202": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "channel",
+                  "purpose",
+                  "target"
+                ],
+                "properties": {
+                  "channel": {
+                    "enum": [
+                      "phone",
+                      "email"
+                    ]
+                  },
+                  "purpose": {
+                    "enum": [
+                      "login",
+                      "join",
+                      "bind",
+                      "replace",
+                      "reauth",
+                      "recover"
+                    ]
+                  },
+                  "target": {
+                    "type": "string"
+                  },
+                  "invite": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login-code": {
+      "post": {
+        "operationId": "postAuthLogin-Code",
+        "summary": "验证码登录",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challenge_id",
+                  "code"
+                ],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/join": {
+      "post": {
+        "operationId": "postAuthJoin",
+        "summary": "验证后消费邀请并加入",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "invite",
+                  "challenge_id",
+                  "code",
+                  "nickname"
+                ],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  },
+                  "invite": {
+                    "type": "string"
+                  },
+                  "nickname": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/recover": {
+      "post": {
+        "operationId": "postAuthRecover",
+        "summary": "普通成员验证渠道找回",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challenge_id",
+                  "code"
+                ],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/identities": {
+      "get": {
+        "operationId": "getAccountIdentities",
+        "summary": "脱敏绑定列表",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        }
+      }
+    },
+    "/account/identities/bind": {
+      "post": {
+        "operationId": "postAccountIdentitiesBind",
+        "summary": "绑定新渠道并撤销会话",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challenge_id",
+                  "code"
+                ],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/identities/replace": {
+      "post": {
+        "operationId": "postAccountIdentitiesReplace",
+        "summary": "近期重新验证后更换绑定",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challenge_id",
+                  "code"
+                ],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/identities/{id}": {
+      "delete": {
+        "operationId": "deleteAccountIdentitiesId",
+        "summary": "解除本人绑定",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/account/reauth": {
+      "post": {
+        "operationId": "postAccountReauth",
+        "summary": "重新验证当前会话",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "challenge_id": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  },
+                  "password": {
+                    "type": "string",
+                    "writeOnly": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/password": {
+      "put": {
+        "operationId": "putAccountPassword",
+        "summary": "修改密码并撤销会话",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "writeOnly": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/sessions": {
+      "get": {
+        "operationId": "getAccountSessions",
+        "summary": "本人会话列表",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAccountSessions",
+        "summary": "退出本人所有会话",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        }
+      }
+    },
+    "/account/sessions/{id}": {
+      "delete": {
+        "operationId": "deleteAccountSessionsId",
+        "summary": "撤销本人指定会话",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/system/auth-status": {
+      "get": {
+        "operationId": "getSystemAuth-Status",
+        "summary": "系统管理员查看脱敏渠道状态",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "处理完成（发送受理不代表送达）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求或验证码无效"
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足或需要重新验证"
+          },
+          "429": {
+            "description": "达到发送或验证限额"
+          }
+        }
+      }
+    },
+    "/admin/invites/{id}": {
+      "delete": {
+        "operationId": "deleteAdminInvitesId",
+        "summary": "撤销未消费邀请",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/system/audit": {
+      "get": {
+        "operationId": "getSystemAudit",
+        "summary": "系统管理员查看最近五十条脱敏审计",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "需要登录"
+          },
+          "403": {
+            "description": "权限不足"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5252,7 +6008,8 @@
           "id",
           "name",
           "login",
-          "role"
+          "role",
+          "can_edit"
         ],
         "properties": {
           "id": {
@@ -5267,10 +6024,13 @@
           "role": {
             "type": "string",
             "enum": [
+              "system_admin",
               "admin",
-              "editor",
-              "viewer"
+              "user"
             ]
+          },
+          "can_edit": {
+            "type": "boolean"
           }
         }
       },
@@ -5719,16 +6479,25 @@
           "role": {
             "type": "string",
             "enum": [
+              "system_admin",
               "admin",
-              "editor",
-              "viewer"
+              "user"
             ]
           },
           "disabled": {
+            "type": "boolean"
+          },
+          "can_edit": {
             "type": "boolean"
           }
         }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Accounts",
+      "description": "私有成员与验证码"
+    }
+  ]
 }

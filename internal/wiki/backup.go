@@ -41,7 +41,7 @@ func (a *App) Backup(output string) (string, error) {
 		return "", e
 	}
 	defer db.Close()
-	if _, e = db.Exec(`DELETE FROM sessions; DELETE FROM invites;`); e != nil {
+	if _, e = db.Exec(`DELETE FROM sessions; DELETE FROM invites; DELETE FROM auth_challenges;`); e != nil {
 		return "", e
 	}
 	rows, e := db.Query(`SELECT object_key,size FROM media WHERE state='ready'`)

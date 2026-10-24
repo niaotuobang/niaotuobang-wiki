@@ -169,10 +169,14 @@ function command(name: string) {
   }
 }
 function insertMedia(id: string, isVideo: boolean, name: string) {
-  editor.value
-    ?.chain()
+  const current = editor.value
+  if (!current) return
+  // A completed image leaves a NodeSelection. Insert after the selection so
+  // the next asynchronous upload cannot replace that image or selected prose.
+  current
+    .chain()
     .focus()
-    .insertContent({
+    .insertContentAt(current.state.selection.to, {
       type: isVideo ? 'video' : 'image',
       attrs: {
         mediaId: id,

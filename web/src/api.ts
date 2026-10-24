@@ -32,11 +32,7 @@ export async function api<T = any>(
   })
   const data = await response.json()
   if (response.status === 401 && !path.startsWith('/auth/')) {
-    session.user = null
-    session.csrf_token = ''
-    session.public_read = false
-    catalog.tags = []
-    clearListState()
+    clearPrivateState()
   }
   if (!response.ok)
     throw new ApiError(
@@ -80,5 +76,20 @@ export function dateLabel(value: string, precision?: string) {
   }).format(new Date(value))
 }
 export function editable() {
-  return !!session.user && session.user.role !== 'viewer'
+  return !!session.user && (session.user.role !== 'user' || session.user.can_edit)
+}
+
+export function administrative() {
+  return session.user?.role === 'admin' || session.user?.role === 'system_admin'
+}
+export function clearPrivateState() {
+  session.user = null
+  session.csrf_token = ''
+  session.public_read = false
+  catalog.tags = []
+  clearListState()
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i)
+    if (k?.startsWith('wiki-draft:')) localStorage.removeItem(k)
+  }
 }

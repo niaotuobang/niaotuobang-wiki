@@ -2,15 +2,14 @@ services:
   wiki:
     image: niaotuobang-wiki:local
     build: .
+    env_file:
+      - ${WIKI_ENV_FILE:?Set WIKI_ENV_FILE to a private runtime env file}
     environment:
-      BASE_URL: ${BASE_URL:-}
-      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
-      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
-      OSS_REGION: ${OSS_REGION:-}
-      OSS_BUCKET: ${OSS_BUCKET:-}
-      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
-      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
-      OSS_SECURITY_TOKEN: ${OSS_SECURITY_TOKEN:-}
+      DATA_DIR: /data
+      LISTEN_ADDR: 0.0.0.0:8080
+      AUTH_SECRET_FILE: /run/secrets/wiki-auth
+    secrets:
+      - wiki-auth
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -20,3 +19,6 @@ services:
     cpus: 1
 volumes:
   wiki-data:
+secrets:
+  wiki-auth:
+    file: ${WIKI_AUTH_SECRET_FILE:?Set WIKI_AUTH_SECRET_FILE to the private 32-byte key file}

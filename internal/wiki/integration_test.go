@@ -100,9 +100,10 @@ func TestPermissionsAndCSRF(t *testing.T) {
 	invite := admin.call("POST", "/api/v1/admin/invites", map[string]string{"role": "editor"}, 201)
 	member := &testClient{t: t, app: a}
 	b := map[string]any{"invite": invite["invite"], "name": "新群友", "login": "new-member", "password": "new-password-123"}
-	member.call("POST", "/api/v1/auth/register", b, 200)
+	member.call("POST", "/api/v1/auth/register", b, 410)
 	b["login"] = "another-member"
-	anon.call("POST", "/api/v1/auth/register", b, 403)
+	anon.call("POST", "/api/v1/auth/register", b, 410)
+	member = newUserClient(t, a, "editor")
 	admin.call("GET", "/api/v1/admin", nil, 200)
 	admin.call("PATCH", "/api/v1/admin/members/"+admin.call("GET", "/api/v1/me", nil, 200)["user"].(map[string]any)["id"].(string), map[string]any{"role": "viewer", "disabled": false}, 409)
 	me := member.call("GET", "/api/v1/me", nil, 200)["user"].(map[string]any)

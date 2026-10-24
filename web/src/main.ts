@@ -30,6 +30,20 @@ const router = createRouter({
 // Older Matterwiki links use a hash route, invisible to the HTTP server.
 const legacy = window.location.hash.match(/^#\/?article\/(\d+)/)
 if (legacy) window.location.replace('/articles/legacy-' + legacy[1])
+router.onError((error, to) => {
+  if (
+    /Failed to fetch dynamically imported module|Importing a module script failed/.test(
+      String(error),
+    )
+  ) {
+    const key = 'wiki-release-reload'
+    const previous = Number(sessionStorage.getItem(key) || '0')
+    if (Date.now() - previous > 60000) {
+      sessionStorage.setItem(key, String(Date.now()))
+      window.location.assign(to.fullPath)
+    }
+  }
+})
 router.afterEach(() => {
   document.title = '鸟托邦 Wiki'
 })

@@ -148,7 +148,9 @@ async function remove() {
       </div>
       <div class="dialog-actions">
         <button
-          v-if="editing && session.user?.role === 'admin'"
+          v-if="
+            (editing && session.user?.role === 'admin') || session.user?.role === 'system_admin'
+          "
           type="button"
           class="delete-link"
           @click="deleting = true"

@@ -47,6 +47,16 @@ func (a *App) CleanupUploads() error {
 		}
 	}
 	_, e = a.store.DB.Exec(`DELETE FROM sessions WHERE expires_at<?`, now())
+	if e != nil {
+		return e
+	}
+	cutoffAuth := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339Nano)
+	for _, q := range []string{`DELETE FROM auth_challenges WHERE id IN (SELECT id FROM auth_challenges WHERE expires_at<? LIMIT 500)`, `DELETE FROM auth_rate_limits WHERE key IN (SELECT key FROM auth_rate_limits WHERE expires_at<? LIMIT 500)`} {
+		if _, e = a.store.DB.Exec(q, cutoffAuth); e != nil {
+			return e
+		}
+	}
+	_, e = a.store.DB.Exec(`DELETE FROM auth_audit_events WHERE id IN (SELECT id FROM auth_audit_events WHERE created_at<? LIMIT 500)`, time.Now().UTC().Add(-90*24*time.Hour).Format(time.RFC3339Nano))
 	return e
 }
 func (a *App) Maintain(ctx context.Context) {

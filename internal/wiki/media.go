@@ -34,7 +34,11 @@ func newOSS(c OSSConfig) (*OSSStorage, error) {
 	if e != nil || endpoint.Host == "" || endpoint.Scheme != "https" && endpoint.Scheme != "http" {
 		return nil, fmt.Errorf("invalid OSS endpoint")
 	}
-	opts := []oss.ClientOption{oss.Timeout(15, 120), oss.Region(c.Region), oss.AuthVersion(oss.AuthV4)}
+	// Use Go's standard proxy-aware transport, including HTTPS_PROXY and NO_PROXY.
+	// The SDK default transport ignores these and can fail server-side HEAD after
+	// the browser has already successfully uploaded the object.
+	clientHTTP := &http.Client{Transport: http.DefaultTransport, Timeout: 2 * time.Minute, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
+	opts := []oss.ClientOption{oss.Timeout(15, 120), oss.Region(c.Region), oss.AuthVersion(oss.AuthV4), oss.HTTPClient(clientHTTP)}
 	if c.SecurityToken != "" {
 		opts = append(opts, oss.SecurityToken(c.SecurityToken))
 	}
@@ -331,13 +335,9 @@ func (a *App) mediaRoutes() {
 		}
 		w.Header().Set("Cache-Control", "private, no-store")
 		if a.oss != nil {
-			signed, e := a.oss.bucket.SignURL(m.Key, oss.HTTPGet, 900)
-			if e != nil {
-				return e
-			}
-			http.Redirect(w, r, signed, 302)
-			return nil
+			return a.proxyOSSMedia(w, r, m)
 		}
+
 		f, e := os.Open(filepath.Join(a.store.DataDir, m.Key))
 		if e != nil {
 			return e
@@ -357,6 +357,55 @@ func checkUploadAge(m Media) error {
 	t, e := time.Parse(time.RFC3339Nano, m.CreatedAt)
 	if e != nil || time.Since(t) > time.Hour {
 		return fail(410, "UPLOAD_EXPIRED", "上传已过期，请重新选择文件")
+	}
+	return nil
+}
+
+// proxyOSSMedia keeps authorization on every GET/HEAD/Range request. Never
+// redirect a reader to a reusable signed object URL.
+func (a *App) proxyOSSMedia(w http.ResponseWriter, r *http.Request, m Media) error {
+	signed, e := a.oss.bucket.SignURL(m.Key, oss.HTTPGet, 60)
+	if e != nil {
+		return e
+	}
+	req, e := http.NewRequestWithContext(r.Context(), r.Method, signed, nil)
+	if e != nil {
+		return e
+	}
+	if r.Method == http.MethodHead {
+		signed, e = a.oss.bucket.SignURL(m.Key, oss.HTTPHead, 60)
+		if e != nil {
+			return e
+		}
+		req.URL, e = url.Parse(signed)
+		if e != nil {
+			return e
+		}
+	}
+	for _, h := range []string{"Range", "If-Range", "If-None-Match", "If-Modified-Since"} {
+		if v := r.Header.Get(h); v != "" {
+			req.Header.Set(h, v)
+		}
+	}
+	client := &http.Client{Timeout: 5 * time.Minute, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
+	response, e := client.Do(req)
+	if e != nil {
+		return fail(502, "MEDIA_UNAVAILABLE", "媒体暂时不可用")
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 && response.StatusCode != 206 && response.StatusCode != 304 && response.StatusCode != 416 {
+		return fail(502, "MEDIA_UNAVAILABLE", "媒体暂时不可用")
+	}
+	for _, h := range []string{"Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"} {
+		if v := response.Header.Get(h); v != "" {
+			w.Header().Set(h, v)
+		}
+	}
+	w.Header().Set("Content-Type", m.ContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", m.ID))
+	w.WriteHeader(response.StatusCode)
+	if r.Method != http.MethodHead {
+		_, _ = io.Copy(w, io.LimitReader(response.Body, m.Size+1))
 	}
 	return nil
 }

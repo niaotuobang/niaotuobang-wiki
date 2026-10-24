@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api, message, refreshTags } from '../api'
+import { api, message, refreshTags, session } from '../api'
 const data = ref<{
     counts: Record<string, number>
     trash: { id: string; title: string; deleted_at: string }[]
@@ -12,6 +12,37 @@ const data = ref<{
   role = ref('editor'),
   saving = ref(false),
   notice = ref('')
+const invitations = ref<{ id: string; role: string; state: string; expires_at: string }[]>([]),
+  inviteCursor = ref(''),
+  authStatus = ref<{ phone_configured: boolean; email_configured: boolean; storage: string }>(),
+  audit = ref<{ id: string; event: string; result: string; created_at: string }[]>([])
+async function loadInvites(next = false) {
+  const p = await api(
+    '/admin/invites' + (next ? '?cursor=' + encodeURIComponent(inviteCursor.value) : ''),
+  )
+  invitations.value = next ? [...invitations.value, ...p.items] : p.items
+  inviteCursor.value = p.next_cursor
+}
+async function revokeInvite(id: string) {
+  try {
+    await api('/admin/invites/' + id, { method: 'DELETE' })
+    await loadInvites()
+    notice.value = '邀请已撤销'
+  } catch (e) {
+    error.value = message(e)
+  }
+}
+async function loadSecurity() {
+  try {
+    await loadInvites()
+    if (session.user?.role === 'system_admin') {
+      authStatus.value = await api('/system/auth-status')
+      audit.value = (await api('/system/audit')).items
+    }
+  } catch (e) {
+    error.value = message(e)
+  }
+}
 async function load() {
   try {
     data.value = await api('/admin')
@@ -34,21 +65,11 @@ async function makeInvite() {
   try {
     const result = await api('/admin/invites', { method: 'POST', body: { role: role.value } })
     invite.value = window.location.origin + '/account?invite=' + encodeURIComponent(result.invite)
+    await loadInvites()
   } catch (e) {
     error.value = message(e)
   } finally {
     saving.value = false
-  }
-}
-async function save() {
-  try {
-    await api('/admin/settings', {
-      method: 'PATCH',
-      body: { public_read: data.value?.public_read },
-    })
-    notice.value = '阅读设置已保存'
-  } catch (e) {
-    error.value = message(e)
   }
 }
 interface Member {
@@ -57,6 +78,7 @@ interface Member {
   login: string
   role: string
   disabled: boolean
+  can_edit: boolean
 }
 const members = ref<Member[]>([]),
   memberCursor = ref('')
@@ -75,7 +97,7 @@ async function saveMember(member: Member) {
   try {
     await api('/admin/members/' + member.id, {
       method: 'PATCH',
-      body: { role: member.role, disabled: member.disabled },
+      body: { role: member.role, disabled: member.disabled, can_edit: member.can_edit },
     })
     notice.value = '成员权限已更新'
   } catch (e) {
@@ -86,7 +108,18 @@ async function saveMember(member: Member) {
 onMounted(() => {
   load()
   loadMembers()
+  loadSecurity()
 })
+function inviteState(value: string) {
+  return (
+    (
+      { active: '可使用', consumed: '已使用', revoked: '已撤销', expired: '已过期' } as Record<
+        string,
+        string
+      >
+    )[value] || value
+  )
+}
 </script>
 <template>
   <div class="page-heading">
@@ -114,12 +147,9 @@ onMounted(() => {
       </div>
     </section>
     <section class="settings-section">
-      <h2>谁可以阅读</h2>
-      <label class="checkbox-label"
-        ><input v-model="data.public_read" type="checkbox" />允许任何人阅读已发布的文章</label
-      >
-      <p class="muted">关闭后，只有已登录的成员可读。个人草稿始终不会公开。</p>
-      <button class="quiet-button" @click="save">保存阅读设置</button>
+      <h2>阅读范围</h2>
+      <p>只有已登录的成员可以查看文章、搜索与媒体。</p>
+      <RouterLink to="/account">敏感操作前，前往我的账号重新验证</RouterLink>
     </section>
     <section class="settings-section">
       <h2>邀请一个群友</h2>
@@ -139,6 +169,31 @@ onMounted(() => {
       /></label>
     </section>
     <section class="settings-section">
+      <h2>邀请记录</h2>
+      <div v-for="item in invitations" :key="item.id" class="member-row">
+        <span
+          >{{ inviteState(item.state) }} · {{ item.role === 'viewer' ? '只读' : '普通成员' }}</span
+        ><button v-if="item.state === 'active'" class="text-link" @click="revokeInvite(item.id)">
+          撤销邀请
+        </button>
+      </div>
+      <button v-if="inviteCursor" class="text-link" @click="loadInvites(true)">更多邀请</button>
+    </section>
+    <section v-if="authStatus" class="settings-section">
+      <h2>验证渠道</h2>
+      <p>
+        邮箱：{{
+          authStatus.email_configured ? '已配置' : '未配置'
+        }}；媒体：{{ authStatus.storage }}
+      </p>
+      <p class="muted">配置完整不等于实际投递成功。真实验证码还需要收件人确认。</p>
+      <h2>最近安全记录</h2>
+      <div v-for="item in audit" :key="item.id" class="member-row">
+        <span>{{ item.event }} · {{ item.result }}</span
+        ><time>{{ new Date(item.created_at).toLocaleString() }}</time>
+      </div>
+    </section>
+    <section class="settings-section">
       <h2>空间成员</h2>
       <p class="muted">停用后会立即退出这个成员的会话，署名和文章仍会保留。</p>
       <div v-for="member in members" :key="member.id" class="member-row">
@@ -147,11 +202,19 @@ onMounted(() => {
           ><small>{{ member.login }}</small>
         </div>
         <select v-model="member.role" :aria-label="member.name + '的角色'">
-          <option value="viewer">阅读者</option>
-          <option value="editor">编辑者</option>
-          <option value="admin">管理员</option></select
+          <option value="user">普通用户</option>
+          <option v-if="session.user?.role === 'system_admin'" value="admin">管理员</option>
+          <option v-if="session.user?.role === 'system_admin'" value="system_admin">
+            系统管理员
+          </option></select
         ><label class="checkbox-label"
           ><input v-model="member.disabled" type="checkbox" />停用</label
+        ><label class="checkbox-label"
+          ><input
+            v-model="member.can_edit"
+            type="checkbox"
+            :disabled="member.role !== 'user'"
+          />可编辑</label
         ><button class="quiet-button" @click="saveMember(member)">保存</button>
       </div>
       <button v-if="memberCursor" class="text-link" @click="loadMembers(true)">查看更多成员</button>
@@ -161,7 +224,12 @@ onMounted(() => {
       <p class="muted">
         备份包括文章、标签、历史版本和已完成的媒体文件。请妥善保存，其中包含空间的私有内容。
       </p>
-      <a class="quiet-button" href="/api/v1/admin/backup">下载完整备份</a>
+      <a
+        v-if="session.user?.role === 'system_admin'"
+        class="quiet-button"
+        href="/api/v1/admin/backup"
+        >下载完整备份</a
+      >
     </section>
     <section class="settings-section">
       <h2>回收站</h2>

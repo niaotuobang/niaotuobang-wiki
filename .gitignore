@@ -52,3 +52,8 @@ next-env.d.ts
 /.local-infra/
 /web/test-results/
 /.ai-cli-log/
+
+# Runtime env files may contain provider credentials.
+*.env
+*.env.*
+!/config/wiki.env.example

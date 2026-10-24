@@ -27,6 +27,7 @@ type Config struct {
 	DataDir, BaseURL string
 	Demo             bool
 	UI               fs.FS
+	Auth             *AuthConfig
 	OSS              *OSSConfig
 }
 type App struct {
@@ -38,6 +39,7 @@ type App struct {
 	setupToken string
 	attempts   map[string]attempt
 	oss        *OSSStorage
+	auth       *authService
 }
 type attempt struct {
 	Count int
@@ -86,18 +88,25 @@ func Open(cfg Config) (*App, error) {
 		s.DB.Close()
 		return nil, err
 	}
+	if cfg.Auth != nil {
+		if err = a.initAuth(*cfg.Auth); err != nil {
+			s.DB.Close()
+			return nil, err
+		}
+	}
 	a.routes()
+	a.identityRoutes()
 	return a, nil
 }
 func (a *App) Close() error { return a.store.DB.Close() }
 func (a *App) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Referrer-Policy", "same-origin")
+		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			w.Header().Set("Cache-Control", "no-store")
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/media/") {
+			w.Header().Set("Cache-Control", "private, no-store")
 		}
 		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" {
 			if origin := r.Header.Get("Origin"); origin != "" {
@@ -159,25 +168,21 @@ func (a *App) session(r *http.Request) (*User, string) {
 		return nil, ""
 	}
 	var u User
-	err := a.store.DB.QueryRow(`SELECT u.id,u.name,u.login,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0`, hashToken(token), now()).Scan(&u.ID, &u.Name, &u.Login, &u.Role)
+	err := a.store.DB.QueryRow(`SELECT u.id,u.name,u.login,u.access_role,u.can_edit FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0`, hashToken(token), now()).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit)
 	if err != nil {
 		return nil, ""
 	}
 	return &u, token
 }
-func (a *App) publicRead() bool {
-	var value string
-	a.store.DB.QueryRow(`SELECT value FROM settings WHERE key='public_read'`).Scan(&value)
-	return value == "true"
-}
+func (a *App) publicRead() bool { return false }
 func (a *App) route(pattern, permission string, fn endpoint) {
 	a.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		u, token := a.session(r)
-		if permission != "public" && u == nil && !(permission == "read" && a.publicRead()) {
+		if permission != "public" && u == nil {
 			writeError(w, fail(401, "UNAUTHENTICATED", "请先登录群 Wiki"))
 			return
 		}
-		if permission == "edit" && (u == nil || u.Role == "viewer") || permission == "admin" && (u == nil || u.Role != "admin") {
+		if permission == "edit" && (u == nil || !u.Editable()) || permission == "admin" && (u == nil || !u.IsAdmin()) || permission == "system" && (u == nil || u.Role != "system_admin") {
 			writeError(w, fail(403, "FORBIDDEN", "当前账号没有操作权限"))
 			return
 		}
@@ -193,15 +198,14 @@ func (a *App) route(pattern, permission string, fn endpoint) {
 	})
 }
 func (a *App) login(w http.ResponseWriter, u User) error {
-	token := newID() + newID()
-	_, err := a.store.DB.Exec(`INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)`, hashToken(token), u.ID, time.Now().UTC().Add(30*24*time.Hour).Format(time.RFC3339Nano))
-	if err != nil {
-		return err
+	token, e := a.makeSession(a.store.DB, u)
+	if e != nil {
+		return e
 	}
-	http.SetCookie(w, &http.Cookie{Name: "wiki_session", Value: token, Path: "/", HttpOnly: true, Secure: strings.HasPrefix(a.cfg.BaseURL, "https://"), SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 3600})
-	writeJSON(w, 200, map[string]any{"user": u, "csrf_token": csrfToken(token)})
+	a.sessionResponse(w, u, token)
 	return nil
 }
+
 func (a *App) routes() {
 	a.route("GET /api/v1/me", "public", func(w http.ResponseWriter, r *http.Request, u *User) error {
 		a.authMu.Lock()
@@ -224,7 +228,7 @@ func (a *App) routes() {
 		}
 		var u User
 		var disabled bool
-		if e := a.store.DB.QueryRow(`SELECT id,name,login,role,disabled FROM users WHERE id='demo-editor'`).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &disabled); e != nil {
+		if e := a.store.DB.QueryRow(`SELECT id,name,login,access_role,can_edit,disabled FROM users WHERE id='demo-editor'`).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &disabled); e != nil {
 			return e
 		}
 		if disabled {
@@ -235,10 +239,7 @@ func (a *App) routes() {
 	a.route("POST /api/v1/auth/login", "public", func(w http.ResponseWriter, r *http.Request, _ *User) error {
 		a.authMu.Lock()
 		defer a.authMu.Unlock()
-		key := r.RemoteAddr
-		if i := strings.LastIndex(key, ":"); i >= 0 {
-			key = key[:i]
-		}
+		key := a.clientIP(r)
 		at := a.attempts[key]
 		if time.Since(at.Since) > 15*time.Minute {
 			at = attempt{Since: time.Now()}
@@ -260,7 +261,7 @@ func (a *App) routes() {
 		}
 		var u User
 		var hash []byte
-		err := a.store.DB.QueryRow(`SELECT id,name,login,role,password_hash FROM users WHERE login=? AND disabled=0`, strings.ToLower(strings.TrimSpace(b.Login))).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &hash)
+		err := a.store.DB.QueryRow(`SELECT id,name,login,access_role,can_edit,password_hash FROM users WHERE login=? AND disabled=0`, strings.ToLower(strings.TrimSpace(b.Login))).Scan(&u.ID, &u.Name, &u.Login, &u.Role, &u.CanEdit, &hash)
 		if err != nil || bcrypt.CompareHashAndPassword(hash, []byte(b.Password)) != nil {
 			return fail(401, "UNAUTHENTICATED", "账号或密码不正确")
 		}
@@ -282,7 +283,7 @@ func (a *App) routes() {
 		if a.setupToken == "" || subtle.ConstantTimeCompare([]byte(a.setupToken), []byte(b.Token)) != 1 {
 			return fail(403, "FORBIDDEN", "初始化凭证无效")
 		}
-		u, e := a.createUser(b.Name, b.Login, b.Password, "admin")
+		u, e := a.createUser(b.Name, b.Login, b.Password, "system_admin")
 		if e != nil {
 			return e
 		}
@@ -483,10 +484,11 @@ func prepareUser(name, login, password, role string) (User, []byte, error) {
 		return User{}, nil, fail(400, "VALIDATION_ERROR", "昵称必填，账号至少 3 字符，密码需要 10 至 72 字节")
 	}
 	hash, e := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return User{newID(), name, login, role}, hash, e
+	r, edit := canonicalRole(role)
+	return User{ID: newID(), Name: name, Login: login, Role: r, CanEdit: edit}, hash, e
 }
 func insertUser(db execer, u User, hash []byte) error {
-	_, e := db.Exec(`INSERT INTO users(id,name,login,password_hash,role) VALUES(?,?,?,?,?)`, u.ID, u.Name, u.Login, hash, u.Role)
+	_, e := db.Exec(`INSERT INTO users(id,name,login,password_hash,role,access_role,can_edit) VALUES(?,?,?,?,?,?,?)`, u.ID, u.Name, u.Login, hash, legacyRole(u), u.Role, u.CanEdit)
 	if e != nil && strings.Contains(e.Error(), "UNIQUE") {
 		return fail(409, "ACCOUNT_EXISTS", "账号已经存在")
 	}
@@ -751,78 +753,19 @@ func (a *App) adminRoutes() {
 		writeJSON(w, 200, map[string]any{"counts": counts, "trash": trash, "public_read": a.publicRead(), "storage": a.storageName()})
 		return rows.Err()
 	})
-	a.route("PATCH /api/v1/admin/settings", "admin", func(w http.ResponseWriter, r *http.Request, _ *User) error {
-		var b struct {
-			Public bool `json:"public_read"`
-		}
-		if e := decode(w, r, &b); e != nil {
-			return e
-		}
-		_, e := a.store.DB.Exec(`INSERT INTO settings(key,value) VALUES('public_read',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, strconv.FormatBool(b.Public))
-		if e != nil {
-			return e
-		}
-		writeJSON(w, 200, map[string]bool{"ok": true})
-		return nil
+	a.route("PATCH /api/v1/admin/settings", "system", func(w http.ResponseWriter, r *http.Request, u *User) error {
+		return fail(400, "PRIVATE_WIKI", "此 Wiki 必须登录，不支持公开阅读")
 	})
-	a.route("POST /api/v1/admin/invites", "admin", func(w http.ResponseWriter, r *http.Request, _ *User) error {
-		var b struct {
-			Role string `json:"role"`
-		}
-		if e := decode(w, r, &b); e != nil {
-			return e
-		}
-		if b.Role != "viewer" && b.Role != "editor" {
-			return fail(400, "VALIDATION_ERROR", "邀请角色需要是阅读者或编辑者")
-		}
-		token := newID()
-		_, e := a.store.DB.Exec(`INSERT INTO invites(token_hash,role,expires_at) VALUES(?,?,?)`, hashToken(token), b.Role, time.Now().UTC().Add(7*24*time.Hour).Format(time.RFC3339Nano))
-		if e != nil {
-			return e
-		}
-		writeJSON(w, 201, map[string]string{"invite": token})
-		return nil
-	})
+	a.inviteRoutes()
 	a.route("POST /api/v1/auth/register", "public", func(w http.ResponseWriter, r *http.Request, _ *User) error {
-		a.authMu.Lock()
-		defer a.authMu.Unlock()
-		var b struct {
-			Invite   string `json:"invite"`
-			Name     string `json:"name"`
-			Login    string `json:"login"`
-			Password string `json:"password"`
-		}
-		if e := decode(w, r, &b); e != nil {
-			return e
-		}
-		var role string
-		if e := a.store.DB.QueryRow(`SELECT role FROM invites WHERE token_hash=? AND expires_at>?`, hashToken(b.Invite), now()).Scan(&role); e != nil {
-			return fail(403, "FORBIDDEN", "邀请已使用或过期")
-		}
-		u, hash, e := prepareUser(b.Name, b.Login, b.Password, role)
-		if e != nil {
-			return e
-		}
-		tx, e := a.store.DB.Begin()
-		if e != nil {
-			return e
-		}
-		defer tx.Rollback()
-		if e = tx.QueryRow(`SELECT role FROM invites WHERE token_hash=? AND expires_at>?`, hashToken(b.Invite), now()).Scan(&u.Role); e != nil {
-			return fail(403, "FORBIDDEN", "邀请已使用或过期")
-		}
-		if e = insertUser(tx, u, hash); e != nil {
-			return e
-		}
-		if _, e = tx.Exec(`DELETE FROM invites WHERE token_hash=?`, hashToken(b.Invite)); e != nil {
-			return e
-		}
-		if e = tx.Commit(); e != nil {
-			return e
-		}
-		return a.login(w, u)
+		return fail(410, "VERIFICATION_REQUIRED", "请使用邀请凭证和手机或邮箱验证码加入")
 	})
-	a.route("GET /api/v1/admin/backup", "admin", a.downloadBackup)
+	a.route("GET /api/v1/admin/backup", "system", func(w http.ResponseWriter, r *http.Request, u *User) error {
+		if e := a.requireReauth(r, u); e != nil {
+			return e
+		}
+		return a.downloadBackup(w, r, u)
+	})
 }
 
 var pagePath = regexp.MustCompile(`^/(|tags|tags/[A-Za-z0-9_-]+|articles/new|articles/[A-Za-z0-9_-]+(?:/edit|/history)?|timeline|search|drafts|account|admin)$`)

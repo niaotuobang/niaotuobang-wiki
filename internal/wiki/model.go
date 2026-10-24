@@ -61,11 +61,37 @@ type WriteArticle struct {
 	Status           string   `json:"status"`
 }
 type User struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Login string `json:"login"`
-	Role  string `json:"role"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Login   string `json:"login"`
+	Role    string `json:"role"`
+	CanEdit bool   `json:"can_edit"`
 }
+
+func (u User) IsAdmin() bool  { return u.Role == "admin" || u.Role == "system_admin" }
+func (u User) Editable() bool { return u.IsAdmin() || u.Role == "user" && u.CanEdit }
+func canonicalRole(role string) (string, bool) {
+	switch role {
+	case "viewer":
+		return "user", false
+	case "editor":
+		return "user", true
+	case "admin", "system_admin":
+		return role, true
+	default:
+		return "user", true
+	}
+}
+func legacyRole(u User) string {
+	if u.IsAdmin() {
+		return "admin"
+	}
+	if u.CanEdit {
+		return "editor"
+	}
+	return "viewer"
+}
+
 type APIError struct {
 	Status        int
 	Code, Message string

@@ -1,0 +1,2 @@
+ALTER TABLE invites ADD COLUMN consumed_at TEXT NOT NULL DEFAULT '';
+ALTER TABLE invites ADD COLUMN consumed_by TEXT NOT NULL DEFAULT '';

@@ -35,7 +35,7 @@ func (a *App) seedDemo() error {
 	if existing > 0 {
 		return fmt.Errorf("demo mode requires a separate empty data directory")
 	}
-	if _, e := a.store.DB.Exec(`INSERT INTO users(id,name,login,password_hash,role) VALUES('demo-editor','群友','demo','','admin')`); e != nil {
+	if _, e := a.store.DB.Exec(`INSERT INTO users(id,name,login,password_hash,role,access_role,can_edit) VALUES('demo-editor','群友','demo','','admin','system_admin',1)`); e != nil {
 		return e
 	}
 	if _, e := a.store.DB.Exec(`INSERT INTO settings(key,value) VALUES('public_read','true') ON CONFLICT(key) DO NOTHING`); e != nil {
@@ -59,7 +59,7 @@ func (a *App) seedDemo() error {
 		{"coffee", "“咖啡可以凉，话不能掉地上”", []string{"某次深夜聊天，大家讨论到最后已经忘记了最初的话题。", "有人准备结束：“咖啡都凉了，明天再说吧。”", "另一位群友接了一句：“咖啡可以凉，话不能掉地上。”于是大家又聊了一个小时。"}, []string{"quotes", "jokes"}, "2025-08", "month"},
 		{"summer", "那一年，我们开始叫这里鸟托邦", []string{"起名字时，大家认真提议了一晚上，投了三轮票。", "最后被选中的，却是有人随手打出来的三个字。没有宏大的解释，只是觉得待在这里挺自在。", "后来回头看，名字是怎么来的已经不重要了。重要的是，我们还在这里聊天。"}, []string{"history", "major"}, "2024", "year"},
 	}
-	u := User{ID: "demo-editor", Name: "群友", Role: "admin"}
+	u := User{ID: "demo-editor", Name: "群友", Role: "system_admin", CanEdit: true}
 	for index, s := range samples {
 		v, e := a.store.saveArticle("", WriteArticle{Title: s.Title, Document: document(s.Lines...), TagIDs: s.Tags, OccurredAt: s.Date, DatePrecision: s.Precision, Status: "published", ChangeSummary: "写下这个故事"}, u, true)
 		if e != nil {

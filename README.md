@@ -5,6 +5,7 @@
 新版使用 **Go + Vue 3 + SQLite**。Go 同时提供网页资源和 `/api/v1`，发行文件运行时无需 Node.js、PostgreSQL 或 Redis。仓库原有的 Next.js 源码暂留作迁移参考，新版入口是 `cmd/wiki` 和 `web`。
 
 - [RFC 0001：页面与架构](docs/rfcs/0001-lightweight-wiki-go-vue.md)
+- [RFC 0002：账号、强制登录与邮箱验证码](docs/rfcs/0002-private-membership-and-verification.md)
 - [运行、媒体、备份和旧站迁移](docs/operations.md)
 - [实现与验证记录](docs/implementation-status.md)
 - [OpenAPI 契约](api/openapi.yaml)
@@ -23,10 +24,10 @@ make demo
 
 ```sh
 make build
-./bin/wiki serve --data-dir ./data/wiki --listen 127.0.0.1:8080
+./bin/wiki serve --env-file /etc/wiki/wiki.env
 ```
 
-第一次启动会在数据目录生成权限为 `0600` 的 `setup-token`。在网页上用这份一次性凭证创建管理员，再邀请群友加入。默认只允许登录成员阅读，管理员可显式开启公开阅读。
+第一次启动会在数据目录生成权限为 `0600` 的 `setup-token`。在网页上用这份一次性凭证创建管理员，再邀请群友加入。网站必须登录后阅读，不提供匿名阅读开关。非演示服务先按 [配置模板](config/wiki.env.example) 配齐两个验证渠道与身份密钥。
 
 编译后的 `bin/wiki` 已嵌入网页。部署时只需对应平台的程序、可写持久目录和环境配置。正式 HTTPS 入口需要设置 `BASE_URL`，如通用示例 `https://wiki.example.com`，以正确启用安全 Cookie。
 
@@ -50,6 +51,9 @@ Vue 页面包括首页、Tag 列表、文章、富文本编辑器、版本历史
 ```sh
 # 使用本机工具链构建 Linux 程序并封装成无 Node.js 的镜像
 make image
+# 先按 config/wiki.env.example 准备仓库外的私有配置与独立密钥
+export WIKI_ENV_FILE=/etc/wiki/wiki.env
+export WIKI_AUTH_SECRET_FILE=/etc/wiki/auth-secret
 docker compose up -d --no-build
 ```
 
@@ -59,6 +63,6 @@ docker compose up -d --no-build
 
 ## 当前边界
 
-第一版实现统一文章和 Tag、图文视频、草稿与版本、链接与反向链接、本地账号与邀请、备份恢复和 Matterwiki 导入。AI、微信／手机号／邮箱绑定及原生小程序属于 RFC 的后续阶段；未来小程序复用当前 Go API 和正文格式。
+第一版实现统一文章和 Tag、图文视频、草稿与版本、链接与反向链接、本地账号与邀请、备份恢复和 Matterwiki 导入。邮箱验证码、绑定与三级角色已按 RFC 0002 实施；手机号与短信暂不启用。AI、微信绑定及原生小程序属于后续阶段；未来小程序复用当前 Go API 和正文格式。
 
 真实账号、云资源、部署记录、生产导出和凭证只放在 Git 忽略的本地私有目录或部署平台秘密配置中，公开文档只保留通用示例。

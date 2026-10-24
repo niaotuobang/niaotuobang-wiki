@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, catalog, editable, message, refreshSession, refreshTags, session } from './api'
+import {
+  api,
+  catalog,
+  editable,
+  administrative,
+  message,
+  refreshSession,
+  refreshTags,
+  session,
+} from './api'
 import Icon from './components/Icon.vue'
 const route = useRoute(),
   router = useRouter(),
@@ -15,6 +24,12 @@ watch(
   () => {
     menu.value = false
     search.value = String(route.query.q || '')
+  },
+)
+watch(
+  () => session.user,
+  (user) => {
+    if (session.ready && !user && route.path !== '/account') router.replace('/account')
   },
 )
 function guardComposition(event: KeyboardEvent) {
@@ -39,13 +54,29 @@ async function initialise() {
       Object.assign(session, await api('/auth/demo', { method: 'POST', body: {} }))
       await refreshSession()
     }
-    if (session.user || session.public_read) await refreshTags()
+    if (session.user) await refreshTags()
     else await router.replace('/account')
   } catch (e) {
     error.value = message(e)
   }
 }
-onMounted(initialise)
+async function recheck() {
+  if (document.visibilityState === 'visible') {
+    try {
+      await refreshSession()
+      if (!session.user) await router.replace('/account')
+    } catch {}
+  }
+}
+onMounted(() => {
+  initialise()
+  window.addEventListener('pageshow', recheck)
+  document.addEventListener('visibilitychange', recheck)
+})
+onUnmounted(() => {
+  window.removeEventListener('pageshow', recheck)
+  document.removeEventListener('visibilitychange', recheck)
+})
 </script>
 <template>
   <a class="skip-link" href="#main">跳到正文</a>
@@ -57,7 +88,7 @@ onMounted(initialise)
           <path fill="white" d="M21 4h2v25h-2z" /></svg
         ><span>鸟托邦<span class="brand-wiki">Wiki</span></span></RouterLink
       >
-      <form class="header-search" role="search" @submit.prevent="submitSearch">
+      <form v-if="session.user" class="header-search" role="search" @submit.prevent="submitSearch">
         <input
           v-model="search"
           @keydown.enter="guardComposition"
@@ -67,7 +98,7 @@ onMounted(initialise)
         /><button aria-label="搜索"><Icon name="search" /></button>
       </form>
       <nav class="header-nav" aria-label="账号与编辑">
-        <RouterLink v-if="session.user?.role === 'admin'" to="/admin">管理</RouterLink
+        <RouterLink v-if="administrative()" to="/admin">管理</RouterLink
         ><RouterLink v-if="editable()" to="/articles/new" class="write-link"
           ><Icon name="plus" :size="18" />写文章</RouterLink
         ><RouterLink to="/account">{{ session.user?.name || '登录' }}</RouterLink>
@@ -91,7 +122,11 @@ onMounted(initialise)
       </button>
     </div>
     <div class="workspace" :class="{ 'reading-layout': articlePage, 'menu-open': menu }">
-      <aside v-if="!articlePage || menu" class="sidebar" :class="{ 'mobile-open': menu }">
+      <aside
+        v-if="session.user && (!articlePage || menu)"
+        class="sidebar"
+        :class="{ 'mobile-open': menu }"
+      >
         <nav aria-label="内容导航">
           <RouterLink to="/" class="primary-nav"><Icon name="book" />最近更新</RouterLink
           ><RouterLink to="/timeline" class="primary-nav"><Icon name="clock" />时间线</RouterLink
@@ -114,7 +149,7 @@ onMounted(initialise)
           <div class="mobile-account-links">
             <RouterLink to="/account" class="primary-nav"
               ><Icon name="user" :size="18" />{{ session.user?.name || '登录 Wiki' }}</RouterLink
-            ><RouterLink v-if="session.user?.role === 'admin'" to="/admin" class="primary-nav"
+            ><RouterLink v-if="administrative()" to="/admin" class="primary-nav"
               >管理 Wiki</RouterLink
             >
           </div>
@@ -122,7 +157,7 @@ onMounted(initialise)
       </aside>
       <main id="main" tabindex="-1">
         <div v-if="!session.ready && !error" class="loading">正在翻开 Wiki…</div>
-        <RouterView v-else :key="route.path" />
+        <RouterView v-else-if="session.user || route.path === '/account'" :key="route.path" />
       </main>
     </div>
     <footer class="site-footer"><span>鸟托邦 Wiki</span><span>记得我们说过的话。</span></footer>
