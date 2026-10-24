@@ -53,7 +53,7 @@ type querier interface {
 func getArticle(q querier, id string) (Article, error) {
 	a := Article{Tags: []Tag{}, SchemaVersion: 1}
 	var doc string
-	err := q.QueryRow(`SELECT a.id,a.title,a.document,a.plain_text,a.status,a.revision,a.occurred_at,a.date_precision,a.author_id,u.name,a.updated_by,e.name,a.created_at,a.updated_at,a.change_summary,a.deleted_at,coalesce(e.avatar_media_id,'') FROM articles a JOIN users u ON u.id=a.author_id JOIN users e ON e.id=a.updated_by WHERE a.id=?`, id).Scan(&a.ID, &a.Title, &doc, &a.PlainText, &a.Status, &a.Revision, &a.OccurredAt, &a.DatePrecision, &a.AuthorID, &a.AuthorName, &a.UpdatedBy, &a.UpdatedByName, &a.CreatedAt, &a.UpdatedAt, &a.ChangeSummary, &a.DeletedAt, &a.UpdatedByAvatar)
+	err := q.QueryRow(`SELECT a.id,a.title,a.document,a.plain_text,a.status,a.revision,a.occurred_at,a.date_precision,a.author_id,u.name,a.updated_by,e.name,a.created_at,a.updated_at,a.change_summary,a.deleted_at,coalesce(e.avatar_media_id,''),coalesce(u.avatar_media_id,'') FROM articles a JOIN users u ON u.id=a.author_id JOIN users e ON e.id=a.updated_by WHERE a.id=?`, id).Scan(&a.ID, &a.Title, &doc, &a.PlainText, &a.Status, &a.Revision, &a.OccurredAt, &a.DatePrecision, &a.AuthorID, &a.AuthorName, &a.UpdatedBy, &a.UpdatedByName, &a.CreatedAt, &a.UpdatedAt, &a.ChangeSummary, &a.DeletedAt, &a.UpdatedByAvatar, &a.AuthorAvatar)
 	if errors.Is(err, sql.ErrNoRows) {
 		return a, fail(404, "NOT_FOUND", "文章不存在或已放入回收站")
 	}

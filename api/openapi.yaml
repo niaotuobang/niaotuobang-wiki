@@ -7034,6 +7034,10 @@
           "legacy_archived_at": {
             "type": "string",
             "description": "旧版归档时间，不等同于原内容修改时间"
+          },
+          "author_avatar": {
+            "type": "string",
+            "description": "创建人当前头像媒体 ID；没有上传时省略，界面显示昵称首字。"
           }
         }
       },

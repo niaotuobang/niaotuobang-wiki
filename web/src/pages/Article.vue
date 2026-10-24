@@ -144,6 +144,17 @@ onMounted(load)
             />{{ article.updated_by_name }}
           </p>
           <p class="muted">共同记录这个群的故事</p>
+          <div class="article-creator">
+            <h2>创建人</h2>
+            <p class="editor-name version-editor">
+              <Avatar
+                :name="article.author_name || '未记录'"
+                :media-id="article.author_avatar"
+                :size="32"
+              />
+              {{ article.author_name || '未记录' }}
+            </p>
+          </div>
         </section>
         <section>
           <h2>这次改了什么</h2>
@@ -182,6 +193,9 @@ onMounted(load)
 </template>
 
 <style scoped>
+.article-creator {
+  margin-top: 28px;
+}
 .article-reading-nav {
   display: flex;
   align-items: center;

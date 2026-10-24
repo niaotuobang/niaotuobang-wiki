@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, catalog, dateLabel, editable, message, session } from '../api'
 import type { Article, Page } from '../types'
 import Icon from '../components/Icon.vue'
+import Avatar from '../components/Avatar.vue'
 import { readListState, saveListState } from '../listState'
 const route = useRoute(),
   router = useRouter(),
@@ -271,6 +272,14 @@ watch(
                 t.name
               }}</RouterLink>
             </div>
+            <p class="article-byline timeline-byline">
+              <Avatar
+                :name="a.updated_by_name || '群友'"
+                :media-id="a.updated_by_avatar"
+                :size="20"
+              />
+              <span>{{ a.updated_by_name }} 补充于 {{ dateLabel(a.updated_at) }}</span>
+            </p>
           </div>
         </article>
       </div>
@@ -309,7 +318,10 @@ watch(
             ><Icon name="clock" :size="13" />{{ dateLabel(a.occurred_at, a.date_precision) }}</span
           >
         </div>
-        <span>{{ a.updated_by_name }} 补充于 {{ dateLabel(a.updated_at) }}</span>
+        <span class="article-byline">
+          <Avatar :name="a.updated_by_name || '群友'" :media-id="a.updated_by_avatar" :size="20" />
+          <span>{{ a.updated_by_name }} 补充于 {{ dateLabel(a.updated_at) }}</span>
+        </span>
       </div>
     </article>
   </div>
@@ -323,3 +335,22 @@ watch(
     >看看还没有填写发生时间的文章</RouterLink
   >
 </template>
+
+<style scoped>
+.article-byline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.article-byline > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.timeline-byline {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+</style>

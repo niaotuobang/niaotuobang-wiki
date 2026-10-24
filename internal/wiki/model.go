@@ -45,6 +45,7 @@ type Article struct {
 	DatePrecision    string   `json:"date_precision"`
 	AuthorID         string   `json:"author_id"`
 	AuthorName       string   `json:"author_name"`
+	AuthorAvatar     string   `json:"author_avatar,omitempty"`
 	UpdatedBy        string   `json:"updated_by"`
 	UpdatedByName    string   `json:"updated_by_name"`
 	UpdatedByAvatar  string   `json:"updated_by_avatar,omitempty"`

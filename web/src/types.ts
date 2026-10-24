@@ -33,6 +33,7 @@ export interface Article {
   date_precision: string
   author_id: string
   author_name: string
+  author_avatar?: string
   updated_by: string
   updated_by_name: string
   updated_by_avatar?: string

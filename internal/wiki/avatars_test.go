@@ -118,3 +118,29 @@ func TestHistoricVersionsUseCurrentAvatarWithoutChangingEditor(t *testing.T) {
 		t.Fatal("cleared avatar retained in version response")
 	}
 }
+
+func TestArticleCreatorAndEditorAvatarsStayDistinct(t *testing.T) {
+	a, creator := newTestApp(t)
+	created := creator.call("POST", "/api/v1/articles", publishBody("创建人与修改人头像"), 201)
+	id := created["id"].(string)
+	creatorAvatar := uploadTestAvatar(t, creator)
+	editor := newUserClient(t, a, "editor")
+	editorAvatar := uploadTestAvatar(t, editor)
+	body := publishBody("另一位成员补充文章")
+	body["expected_revision"] = 1
+	editor.call("PUT", "/api/v1/articles/"+id, body, 200)
+	check := func(item map[string]any) {
+		t.Helper()
+		if item["author_id"] != created["author_id"] || item["author_avatar"] != creatorAvatar || item["updated_by_avatar"] != editorAvatar || item["updated_by"] == item["author_id"] {
+			t.Fatal("creator and latest editor avatar attribution mixed up")
+		}
+	}
+	check(creator.call("GET", "/api/v1/articles/"+id, nil, 200))
+	page := creator.call("GET", "/api/v1/articles", nil, 200)
+	check(page["items"].([]any)[0].(map[string]any))
+	creator.call("DELETE", "/api/v1/account/avatar", nil, 200)
+	current := creator.call("GET", "/api/v1/articles/"+id, nil, 200)
+	if current["author_avatar"] != nil || current["updated_by_avatar"] != editorAvatar {
+		t.Fatal("removing creator avatar affected the editor avatar")
+	}
+}
